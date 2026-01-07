@@ -407,18 +407,19 @@ static void pushpos(lua_State *L, size_t pos) {
 		lua_pushinteger(L, pos);
 }
 
-static void pushrange(lua_State *L, Filerange *r) {
-	if (!r || !text_range_valid(r)) {
+static void pushrange(lua_State *L, Filerange r)
+{
+	if (text_range_valid(r)) {
+		lua_createtable(L, 0, 2);
+		lua_pushliteral(L, "start");
+		lua_pushinteger(L, r.start);
+		lua_settable(L, -3);
+		lua_pushliteral(L, "finish");
+		lua_pushinteger(L, r.end);
+		lua_settable(L, -3);
+	} else {
 		lua_pushnil(L);
-		return;
 	}
-	lua_createtable(L, 0, 2);
-	lua_pushliteral(L, "start");
-	lua_pushinteger(L, r->start);
-	lua_settable(L, -3);
-	lua_pushliteral(L, "finish");
-	lua_pushinteger(L, r->end);
-	lua_settable(L, -3);
 }
 
 static Filerange getrange(lua_State *L, int index) {
@@ -940,7 +941,7 @@ static size_t operator_lua(Vis *vis, Text *text, OperatorContext *c) {
 		file = file->next;
 	if (!file || !obj_ref_new(L, file, VIS_LUA_TYPE_FILE))
 		return EPOS;
-	pushrange(L, &c->range);
+	pushrange(L, c->range);
 	pushpos(L, c->pos);
 	if (pcall(vis, L, 3, 1) != 0)
 		return EPOS;
@@ -1106,7 +1107,8 @@ static bool command_lua(Vis *vis, Win *win, void *data, bool force, const char *
 		sel = view_selections_primary_get(&win->view);
 	if (!obj_lightref_new(L, sel, VIS_LUA_TYPE_SELECTION))
 		return false;
-	pushrange(L, range);
+	if (range) pushrange(L, *range);
+	else       lua_pushnil(L);
 	if (pcall(vis, L, 5, 1) != 0)
 		return false;
 	return lua_toboolean(L, -1);
@@ -1309,7 +1311,7 @@ static int pipe_func(lua_State *L) {
 	if (text)
 		status = vis_pipe_buf_collect(vis, text, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
 	else
-		status = vis_pipe_collect(vis, file, &range, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
+		status = vis_pipe_collect(vis, file, range, (const char*[]){cmd, 0}, &out, &err, fullscreen);
 	lua_pushinteger(L, status);
 	if (out)
 		lua_pushstring(L, out);
@@ -1832,10 +1834,10 @@ static int window_index(lua_State *L) {
 
 			lua_createtable(L, 0, 4);
 			lua_pushliteral(L, "bytes");
-			pushrange(L, &b);
+			pushrange(L, b);
 			lua_settable(L, -3);
 			lua_pushliteral(L, "lines");
-			pushrange(L, &l);
+			pushrange(L, l);
 			lua_settable(L, -3);
 			lua_pushliteral(L, "width");
 			lua_pushinteger(L, win->view.width);
@@ -2421,7 +2423,7 @@ static int window_selection_index(lua_State *L) {
 
 		if (strcmp(key, "range") == 0) {
 			Filerange range = view_selections_get(sel);
-			pushrange(L, &range);
+			pushrange(L, range);
 			return 1;
 		}
 
@@ -2449,8 +2451,8 @@ static int window_selection_newindex(lua_State *L) {
 
 		if (strcmp(key, "range") == 0) {
 			Filerange range = getrange(L, 3);
-			if (text_range_valid(&range)) {
-				view_selections_set(sel, &range);
+			if (text_range_valid(range)) {
+				view_selections_set(sel, range);
 				sel->anchored = true;
 			} else {
 				view_selection_clear(sel);
@@ -2671,7 +2673,7 @@ static int file_insert(lua_State *L)
 static int file_delete(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIS_LUA_TYPE_FILE);
 	Filerange range = getrange(L, 2);
-	lua_pushboolean(L, text_delete_range(file->text, &range));
+	lua_pushboolean(L, text_delete_range(file->text, range));
 	return 1;
 }
 
@@ -2746,9 +2748,9 @@ static int file_lines_iterator_it(lua_State *L) {
 static int file_content(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIS_LUA_TYPE_FILE);
 	Filerange range = getrange(L, 2);
-	if (!text_range_valid(&range))
+	if (!text_range_valid(range))
 		goto err;
-	size_t len = text_range_size(&range);
+	size_t len = text_range_size(range);
 	char *data = lua_newuserdata(L, len);
 	if (!data)
 		goto err;
@@ -2820,7 +2822,7 @@ static int file_text_object(lua_State *L) {
 		if (txtobj->txt)
 			range = txtobj->txt(file->text, pos);
 	}
-	pushrange(L, &range);
+	pushrange(L, range);
 	return 1;
 }
 
@@ -2915,7 +2917,7 @@ static int window_marks_index(lua_State *L) {
 	FilerangeList ranges = vis_mark_get(vis, win, mark);
 	for (VisDACount i = 0; i < ranges.count; i++) {
 		lua_pushinteger(L, i+1);
-		pushrange(L, ranges.data + i);
+		pushrange(L, ranges.data[i]);
 		lua_settable(L, -3);
 	}
 	da_release(&ranges);
@@ -2940,7 +2942,7 @@ static int window_marks_newindex(lua_State *L) {
 		lua_pushnil(L);
 		while (lua_next(L, 3)) {
 			Filerange range = getrange(L, -1);
-			if (text_range_valid(&range))
+			if (text_range_valid(range))
 				*da_push(vis, &ranges) = range;
 			lua_pop(L, 1);
 		}
