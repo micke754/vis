@@ -1,8 +1,10 @@
 -- load standard vis module, providing parts of the Lua API
-require('vis')
+require("vis")
 
 vis.events.subscribe(vis.events.INIT, function()
 	-- Your global configuration options
+	vis.options.keymap = "helix"
+	-- vis.options.keymap = "vim"
 end)
 
 vis.events.subscribe(vis.events.WIN_OPEN, function(win) -- luacheck: no unused args

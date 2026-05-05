@@ -6,8 +6,12 @@
 /vis-single
 /vis-single-payload.inc
 /vis-digraph
+/node_modules
+package-lock.json
+package.json
 *.css
 *.gcda
 *.gcno
 *.gcov
 *.html
+*.pi

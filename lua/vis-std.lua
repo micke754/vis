@@ -133,6 +133,10 @@ vis.events.subscribe(vis.events.WIN_STATUS, function(win)
 	win:status(left, right);
 end)
 
+-- keymap profiles
+
+require('keymaps')
+
 -- default plugins
 
 require('plugins/filetype')
