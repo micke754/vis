@@ -1,28 +1,3 @@
-local function smart_word_motion(motion, direction)
-	return function()
-		local mode = vis.mode
-		local in_visual = mode == vis.modes.VISUAL or mode == vis.modes.VISUAL_LINE
-		local keys = ""
-		if in_visual then
-			keys = keys .. "<vis-mode-normal>"
-			if direction > 0 then
-				keys = keys .. "<vis-motion-char-next>"
-			elseif direction < 0 then
-				keys = keys .. "<vis-motion-char-prev>"
-			end
-		end
-		keys = keys .. "<vis-mode-visual-charwise>" .. motion
-		vis:feedkeys(keys)
-	end
-end
-
-local smart_w = smart_word_motion("<vis-motion-word-start-next>", 1)
-local smart_e = smart_word_motion("<vis-motion-word-end-next>", 1)
-local smart_b = smart_word_motion("<vis-motion-word-start-prev>", -1)
-local smart_W = smart_word_motion("<vis-motion-bigword-start-next>", 1)
-local smart_E = smart_word_motion("<vis-motion-bigword-end-next>", 1)
-local smart_B = smart_word_motion("<vis-motion-bigword-start-prev>", -1)
-
 local normal = {
 	{ "<Escape>", "<vis-mode-normal-escape>", "Return to normal mode" },
 	{ ":", "<vis-prompt-show>", "Open command prompt" },
@@ -35,12 +10,12 @@ local normal = {
 	{ "<Down>", "<vis-motion-line-down>", "Move down" },
 	{ "<Up>", "<vis-motion-line-up>", "Move up" },
 	{ "<Right>", "<vis-motion-char-next>", "Move right" },
-	{ "w", smart_w, "Select next word start" },
-	{ "b", smart_b, "Select previous word start" },
-	{ "e", smart_e, "Select next word end" },
-	{ "W", smart_W, "Select next WORD start" },
-	{ "B", smart_B, "Select previous WORD start" },
-	{ "E", smart_E, "Select next WORD end" },
+	{ "w", "<vis-mode-visual-charwise><vis-motion-word-start-next>", "Select next word start" },
+	{ "b", "<vis-mode-visual-charwise><vis-motion-word-start-prev>", "Select previous word start" },
+	{ "e", "<vis-mode-visual-charwise><vis-motion-word-end-next>", "Select next word end" },
+	{ "W", "<vis-mode-visual-charwise><vis-motion-bigword-start-next>", "Select next WORD start" },
+	{ "B", "<vis-mode-visual-charwise><vis-motion-bigword-start-prev>", "Select previous WORD start" },
+	{ "E", "<vis-mode-visual-charwise><vis-motion-bigword-end-next>", "Select next WORD end" },
 	{ "f", "<vis-mode-visual-charwise><vis-motion-to-line-right>", "Select to next char in line" },
 	{ "t", "<vis-mode-visual-charwise><vis-motion-till-line-right>", "Select till next char in line" },
 	{ "F", "<vis-mode-visual-charwise><vis-motion-to-line-left>", "Select to previous char in line" },
@@ -133,12 +108,12 @@ local visual = {
 	{ "<Down>", "<vis-mode-normal><vis-motion-line-down>", "Move down" },
 	{ "<Up>", "<vis-mode-normal><vis-motion-line-up>", "Move up" },
 	{ "<Right>", "<vis-mode-normal><vis-motion-char-next>", "Move right" },
-	{ "w", smart_w, "Select next word start" },
-	{ "b", smart_b, "Select previous word start" },
-	{ "e", smart_e, "Select next word end" },
-	{ "W", smart_W, "Select next WORD start" },
-	{ "B", smart_B, "Select previous WORD start" },
-	{ "E", smart_E, "Select next WORD end" },
+	{ "w", "<vis-motion-word-start-next>", "Select next word start" },
+	{ "b", "<vis-motion-word-start-prev>", "Select previous word start" },
+	{ "e", "<vis-motion-word-end-next>", "Select next word end" },
+	{ "W", "<vis-motion-bigword-start-next>", "Select next WORD start" },
+	{ "B", "<vis-motion-bigword-start-prev>", "Select previous WORD start" },
+	{ "E", "<vis-motion-bigword-end-next>", "Select next WORD end" },
 	{ "f", "<vis-motion-to-line-right>", "Select to next char in line" },
 	{ "t", "<vis-motion-till-line-right>", "Select till next char in line" },
 	{ "F", "<vis-motion-to-line-left>", "Select to previous char in line" },
