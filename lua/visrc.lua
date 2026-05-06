@@ -1,10 +1,14 @@
 -- load standard vis module, providing parts of the Lua API
 require("vis")
 
+-- Select keymap profile. Custom `:set` options are not exposed through
+-- `vis.options`, so use the keymap module directly from Lua config.
+local keymaps = require("keymaps")
+keymaps.apply("helix")
+-- keymaps.apply("vim")
+
 vis.events.subscribe(vis.events.INIT, function()
 	-- Your global configuration options
-	vis.options.keymap = "helix"
-	-- vis.options.keymap = "vim"
 end)
 
 vis.events.subscribe(vis.events.WIN_OPEN, function(win) -- luacheck: no unused args

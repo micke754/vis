@@ -69,6 +69,7 @@ function M.apply_window(win, profile)
 	profile = profile or M.profile
 	overlay_clear(win)
 	if profile == "vim" then
+		vis:command("set selectionsemantics vim")
 		return true
 	end
 	local ok, impl = pcall(require, "keymaps/" .. profile)
@@ -81,6 +82,7 @@ function M.apply_window(win, profile)
 	if not impl.apply(M, win) then
 		return false, string.format("Failed to apply keymap profile to window: `%s`", profile)
 	end
+	vis:command("set selectionsemantics helix")
 	return true
 end
 
@@ -99,8 +101,17 @@ function M.apply(profile)
 	return true
 end
 
+M.set = M.apply
+
 vis.events.subscribe(vis.events.WIN_OPEN, function(win)
 	local ok, err = M.apply_window(win, M.profile)
+	if not ok and err then
+		vis:info(err)
+	end
+end)
+
+vis.events.subscribe(vis.events.START, function()
+	local ok, err = M.apply(M.profile)
 	if not ok and err then
 		vis:info(err)
 	end
@@ -121,5 +132,8 @@ vis:option_register("keymap", "string", function(name, toggle)
 	end
 	return true
 end, "Keymap profile to use (`vim` or `helix`)")
+
+package.loaded["keymaps"] = M
+package.loaded["keymaps/init"] = M
 
 return M

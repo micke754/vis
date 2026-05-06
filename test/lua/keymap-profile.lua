@@ -96,6 +96,13 @@ describe("keymap profile", function()
 		assert.are.same("This\n", content())
 	end)
 
+	it("resets selection scope on cross-line repeated e", function()
+		vis:command("set keymap helix")
+		reset("This is a test string\nThis string\n")
+		vis:feedkeys("eed")
+		assert.are.same("This is a test string\n string\n", content())
+	end)
+
 	it("includes starting character for word-backward selection", function()
 		vis:command("set keymap helix")
 		reset("This is a test string\n")

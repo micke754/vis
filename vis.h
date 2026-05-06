@@ -1152,6 +1152,11 @@ VIS_EXPORT bool vis_cmd_unregister(Vis *vis, const char *name);
  * @{
  */
 /** Option properties. */
+enum VisSelectionSemantics {
+	VIS_SELECTION_SEMANTICS_VIM,
+	VIS_SELECTION_SEMANTICS_HELIX,
+};
+
 enum VisOption {
 	VIS_OPTION_TYPE_BOOL = 1 << 0,
 	VIS_OPTION_TYPE_STRING = 1 << 1,

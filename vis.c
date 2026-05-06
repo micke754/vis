@@ -790,8 +790,18 @@ void vis_do(Vis *vis) {
 					view_cursors_scroll_to(sel, pos);
 				else
 					view_cursors_to(sel, pos);
-				if (vis->mode->visual)
+				if (vis->mode->visual) {
 					c.range = view_selections_get(sel);
+					if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX &&
+					    (a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
+					     a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) &&
+					    text_line_begin(txt, start) != text_line_begin(txt, pos)) {
+						Filerange word = a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT] ?
+						                 text_object_longword(txt, pos) : text_object_word(txt, pos);
+						if (text_range_valid(&word))
+							c.range = word;
+					}
+				}
 			} else if (a->movement->type & INCLUSIVE && c.range.end > start) {
 				c.range.end = text_char_next(txt, c.range.end);
 			} else if (linewise && (a->movement->type & LINEWISE_INCLUSIVE)) {
