@@ -181,6 +181,7 @@ static void vis_mode_operator_input(Vis *vis, const char *str, size_t len) {
 
 static void vis_mode_visual_enter(Vis *vis, Mode *old) {
 	Win *win = vis->win;
+	vis->helix_visual_start = !old->visual;
 	if (!old->visual && win) {
 		for (Selection *s = view_selections(&win->view); s; s = view_selections_next(s))
 			s->anchored = true;
@@ -212,6 +213,8 @@ static void vis_mode_visual_line_leave(Vis *vis, Mode *new) {
 
 static void vis_mode_visual_leave(Vis *vis, Mode *new) {
 	Win *win = vis->win;
+	if (!new->visual)
+		vis->helix_visual_start = false;
 	if (!new->visual && win) {
 		if (!vis->action.op)
 			window_selection_save(win);
