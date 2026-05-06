@@ -749,6 +749,51 @@ void vis_do(Vis *vis) {
 		bool err = false;
 		if (a->movement) {
 			size_t start = pos;
+			bool helix_word_initial_partial = false;
+			bool helix_word_partial_start_next = false;
+			if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->mode->visual) {
+				bool word_prev = a->movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
+				                 a->movement == &vis_motions[VIS_MOVE_WORD_END_PREV] ||
+				                 a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV] ||
+				                 a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_PREV];
+				bool word_next = a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+				                 a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
+				                 a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT] ||
+				                 a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT];
+				if (word_prev || word_next) {
+					size_t anchor = text_mark_get(txt, sel->anchor);
+					if (anchor == pos) {
+						Filerange word = text_range_empty();
+						if (a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+						    a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
+						    a->movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
+						    a->movement == &vis_motions[VIS_MOVE_WORD_END_PREV])
+							word = text_object_word(txt, pos);
+						else
+							word = text_object_longword(txt, pos);
+						if (text_range_valid(&word) && word.start < pos && pos < word.end) {
+							helix_word_initial_partial = true;
+							if (a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+							    a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT])
+								helix_word_partial_start_next = true;
+							else if (a->movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
+							         a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV]) {
+								pos = word.start;
+								count = 0;
+							}
+						}
+						else if ((a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+						          a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT]) &&
+						         !sel->anchored && text_range_valid(&word) && word.start == pos)
+							count = 0;
+					} else if (word_prev && anchor < pos) {
+						pos = text_char_prev(txt, pos);
+					} else if (word_next && anchor > pos) {
+						pos = text_char_next(txt, pos);
+					}
+					start = pos;
+				}
+			}
 			for (int i = 0; i < count; i++) {
 				size_t pos_prev = pos;
 				if (a->movement->txt)
@@ -771,6 +816,9 @@ void vis_do(Vis *vis) {
 				}
 			}
 
+			if (helix_word_partial_start_next && pos > start)
+				pos = text_char_prev(txt, pos);
+
 			if (err) {
 				repeatable = false;
 				continue; // break?
@@ -792,13 +840,19 @@ void vis_do(Vis *vis) {
 					view_cursors_to(sel, pos);
 				if (vis->mode->visual) {
 					c.range = view_selections_get(sel);
-					if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX &&
-					    (a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
-					     a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) &&
-					    text_line_begin(txt, start) != text_line_begin(txt, pos)) {
-						Filerange word = a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT] ?
-						                 text_object_longword(txt, pos) : text_object_word(txt, pos);
-						if (text_range_valid(&word))
+					if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
+						Filerange word = text_range_empty();
+						if (a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+						    a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
+						    a->movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
+						    a->movement == &vis_motions[VIS_MOVE_WORD_END_PREV])
+							word = text_object_word(txt, pos);
+						else if (a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT] ||
+						         a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT] ||
+						         a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV] ||
+						         a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_PREV])
+							word = text_object_longword(txt, pos);
+						if (text_range_valid(&word) && !helix_word_initial_partial)
 							c.range = word;
 					}
 				}

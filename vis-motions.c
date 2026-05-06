@@ -107,6 +107,143 @@ static size_t word_next(Vis *vis, Text *txt, size_t pos) {
 	                        VIS_MOVE_WORD_END_NEXT, is_word_boundary);
 }
 
+enum HelixCharCategory {
+	HELIX_CHAR_WHITESPACE,
+	HELIX_CHAR_EOL,
+	HELIX_CHAR_WORD,
+	HELIX_CHAR_PUNCTUATION,
+	HELIX_CHAR_UNKNOWN,
+};
+
+static enum HelixCharCategory helix_char_category(int c) {
+	if (c == '\n')
+		return HELIX_CHAR_EOL;
+	if (isspace((unsigned char)c))
+		return HELIX_CHAR_WHITESPACE;
+	if (isalnum((unsigned char)c) || c == '_')
+		return HELIX_CHAR_WORD;
+	if (ISASCII(c) && isgraph((unsigned char)c))
+		return HELIX_CHAR_PUNCTUATION;
+	return HELIX_CHAR_UNKNOWN;
+}
+
+static bool helix_word_boundary(int a, int b) {
+	return helix_char_category(a) != helix_char_category(b);
+}
+
+static bool helix_longword_boundary(int a, int b) {
+	enum HelixCharCategory ca = helix_char_category(a), cb = helix_char_category(b);
+	if ((ca == HELIX_CHAR_WORD && cb == HELIX_CHAR_PUNCTUATION) ||
+	    (ca == HELIX_CHAR_PUNCTUATION && cb == HELIX_CHAR_WORD))
+		return false;
+	return ca != cb;
+}
+
+static bool helix_boundary_next_start(int prev, int next, bool longword) {
+	bool boundary = longword ? helix_longword_boundary(prev, next) : helix_word_boundary(prev, next);
+	return boundary && (helix_char_category(next) == HELIX_CHAR_EOL || !isspace((unsigned char)next));
+}
+
+static bool helix_boundary_next_end(int prev, int next, bool longword) {
+	bool boundary = longword ? helix_longword_boundary(prev, next) : helix_word_boundary(prev, next);
+	return boundary && (!isspace((unsigned char)prev) || helix_char_category(next) == HELIX_CHAR_EOL);
+}
+
+static size_t helix_word_start_next_common(Text *txt, size_t pos, bool longword) {
+	char prev, next;
+	Iterator it = text_iterator_get(txt, pos);
+	if (!text_iterator_byte_get(&it, &prev))
+		return pos;
+	while (text_iterator_char_next(&it, &next)) {
+		if (helix_boundary_next_start((unsigned char)prev, (unsigned char)next, longword))
+			return it.pos;
+		prev = next;
+	}
+	return it.pos;
+}
+
+static size_t helix_word_end_next_common(Text *txt, size_t pos, bool longword) {
+	char prev, next;
+	Iterator it = text_iterator_get(txt, pos);
+	if (!text_iterator_byte_get(&it, &prev))
+		return pos;
+	while (text_iterator_char_next(&it, &next)) {
+		if (helix_boundary_next_end((unsigned char)prev, (unsigned char)next, longword)) {
+			size_t hit = text_char_prev(txt, it.pos);
+			if (hit != pos)
+				return hit;
+		}
+		prev = next;
+	}
+	return it.pos;
+}
+
+static size_t helix_word_start_prev_common(Text *txt, size_t pos, bool longword) {
+	char prev, next;
+	Iterator it = text_iterator_get(txt, pos);
+	if (!text_iterator_byte_get(&it, &next))
+		return pos;
+	while (text_iterator_char_prev(&it, &prev)) {
+		if (helix_boundary_next_end((unsigned char)prev, (unsigned char)next, longword))
+			return it.pos;
+		next = prev;
+	}
+	return it.pos;
+}
+
+static size_t helix_word_end_prev_common(Text *txt, size_t pos, bool longword) {
+	char prev, next;
+	Iterator it = text_iterator_get(txt, pos);
+	if (!text_iterator_byte_get(&it, &next))
+		return pos;
+	while (text_iterator_char_prev(&it, &prev)) {
+		if (helix_boundary_next_start((unsigned char)prev, (unsigned char)next, longword))
+			return text_char_next(txt, it.pos);
+		next = prev;
+	}
+	return it.pos;
+}
+
+static size_t helix_word_start_next(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_start_next_common(txt, pos, false) : text_word_start_next(txt, pos);
+}
+
+static size_t helix_word_end_next(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_end_next_common(txt, pos, false) : text_word_end_next(txt, pos);
+}
+
+static size_t helix_word_start_prev(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_start_prev_common(txt, pos, false) : text_word_start_prev(txt, pos);
+}
+
+static size_t helix_word_end_prev(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_end_prev_common(txt, pos, false) : text_word_end_prev(txt, pos);
+}
+
+static size_t helix_longword_start_next(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_start_next_common(txt, pos, true) : text_longword_start_next(txt, pos);
+}
+
+static size_t helix_longword_end_next(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_end_next_common(txt, pos, true) : text_longword_end_next(txt, pos);
+}
+
+static size_t helix_longword_start_prev(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_start_prev_common(txt, pos, true) : text_longword_start_prev(txt, pos);
+}
+
+static size_t helix_longword_end_prev(Vis *vis, Text *txt, size_t pos) {
+	return vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ?
+	       helix_word_end_prev_common(txt, pos, true) : text_longword_end_prev(txt, pos);
+}
+
 static size_t longword_next(Vis *vis, Text *txt, size_t pos) {
 	return common_word_next(vis, txt, pos, VIS_MOVE_LONGWORD_START_NEXT,
 	                        VIS_MOVE_LONGWORD_END_NEXT, isspace);
@@ -473,19 +610,19 @@ const Movement vis_motions[] = {
 		.type = CHARWISE|IDEMPOTENT,
 	},
 	[VIS_MOVE_WORD_START_PREV] = {
-		.txt = text_word_start_prev,
+		.vis = helix_word_start_prev,
 		.type = CHARWISE,
 	},
 	[VIS_MOVE_WORD_START_NEXT] = {
-		.txt = text_word_start_next,
+		.vis = helix_word_start_next,
 		.type = CHARWISE,
 	},
 	[VIS_MOVE_WORD_END_PREV] = {
-		.txt = text_word_end_prev,
+		.vis = helix_word_end_prev,
 		.type = CHARWISE|INCLUSIVE,
 	},
 	[VIS_MOVE_WORD_END_NEXT] = {
-		.txt = text_word_end_next,
+		.vis = helix_word_end_next,
 		.type = CHARWISE|INCLUSIVE,
 	},
 	[VIS_MOVE_LONGWORD_NEXT] = {
@@ -493,19 +630,19 @@ const Movement vis_motions[] = {
 		.type = CHARWISE|IDEMPOTENT,
 	},
 	[VIS_MOVE_LONGWORD_START_PREV] = {
-		.txt = text_longword_start_prev,
+		.vis = helix_longword_start_prev,
 		.type = CHARWISE,
 	},
 	[VIS_MOVE_LONGWORD_START_NEXT] = {
-		.txt = text_longword_start_next,
+		.vis = helix_longword_start_next,
 		.type = CHARWISE,
 	},
 	[VIS_MOVE_LONGWORD_END_PREV] = {
-		.txt = text_longword_end_prev,
+		.vis = helix_longword_end_prev,
 		.type = CHARWISE|INCLUSIVE,
 	},
 	[VIS_MOVE_LONGWORD_END_NEXT] = {
-		.txt = text_longword_end_next,
+		.vis = helix_longword_end_next,
 		.type = CHARWISE|INCLUSIVE,
 	},
 	[VIS_MOVE_SENTENCE_PREV] = {
