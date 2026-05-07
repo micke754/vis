@@ -361,6 +361,7 @@ static bool cmd_set(Vis *vis, Win *win, Command *cmd, const char *argv[], Select
 	case OPTION_SELECTION_SEMANTICS:
 		if (strcmp("vim", arg.s) == 0) {
 			vis->selection_semantics = VIS_SELECTION_SEMANTICS_VIM;
+			vis->helix_select = false;
 		} else if (strcmp("helix", arg.s) == 0) {
 			vis->selection_semantics = VIS_SELECTION_SEMANTICS_HELIX;
 		} else {

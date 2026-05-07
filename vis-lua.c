@@ -1431,6 +1431,16 @@ static int vis_index(lua_State *L) {
 			return 1;
 		}
 
+		if (strcmp(key, "helix_select") == 0) {
+			lua_pushboolean(L, vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select);
+			return 1;
+		}
+
+		if (strcmp(key, "helix_keymap") == 0) {
+			lua_pushboolean(L, vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX);
+			return 1;
+		}
+
 		if (strcmp(key, "input_queue") == 0) {
 			lua_pushstring(L, buffer_content0(&vis->input_queue));
 			return 1;

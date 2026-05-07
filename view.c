@@ -69,6 +69,8 @@ void window_status_update(Vis *vis, Win *win) {
 	bool focused = vis->win == win;
 	const char *filename = file_name_get(file);
 	const char *mode = vis->mode->status;
+	if (focused && vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select)
+		mode = "SELECT";
 
 	if (focused && mode)
 		strcpy(left_parts[left_count++], mode);

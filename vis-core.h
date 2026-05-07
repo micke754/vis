@@ -205,6 +205,7 @@ struct Vis {
 	bool ignorecase;                     /* whether to ignore case when searching */
 	enum VisSelectionSemantics selection_semantics; /* vim or helix selection behavior */
 	bool helix_visual_start;             /* whether visual mode was just entered for helix selection behavior */
+	bool helix_select;                   /* whether Helix select/extend mode is active */
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
 	char *shell;                         /* shell used to launch external commands */
 	Map *cmds;                           /* ":"-commands, used for unique prefix queries */

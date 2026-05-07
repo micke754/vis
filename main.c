@@ -13,7 +13,17 @@ static Vis vis[1];
 	X(ka_call,                            REDRAW,                           .f = vis_redraw,                          "vis-redraw",                          "Redraw current editor content") \
 	X(ka_call,                            WINDOW_NEXT,                      .f = vis_window_next,                     "vis-window-next",                     "Focus next window") \
 	X(ka_call,                            WINDOW_PREV,                      .f = vis_window_prev,                     "vis-window-prev",                     "Focus previous window") \
-	X(ka_count,                           COUNT,                            0,                                        "vis-count",                           "Count specifier") \
+	X(ka_count,                           COUNT,                            .i = -1,                                 "vis-count",                           "Count specifier") \
+	X(ka_count,                           COUNT_0,                          .i = 0,                                  "vis-count-0",                         "Count specifier 0") \
+	X(ka_count,                           COUNT_1,                          .i = 1,                                  "vis-count-1",                         "Count specifier 1") \
+	X(ka_count,                           COUNT_2,                          .i = 2,                                  "vis-count-2",                         "Count specifier 2") \
+	X(ka_count,                           COUNT_3,                          .i = 3,                                  "vis-count-3",                         "Count specifier 3") \
+	X(ka_count,                           COUNT_4,                          .i = 4,                                  "vis-count-4",                         "Count specifier 4") \
+	X(ka_count,                           COUNT_5,                          .i = 5,                                  "vis-count-5",                         "Count specifier 5") \
+	X(ka_count,                           COUNT_6,                          .i = 6,                                  "vis-count-6",                         "Count specifier 6") \
+	X(ka_count,                           COUNT_7,                          .i = 7,                                  "vis-count-7",                         "Count specifier 7") \
+	X(ka_count,                           COUNT_8,                          .i = 8,                                  "vis-count-8",                         "Count specifier 8") \
+	X(ka_count,                           COUNT_9,                          .i = 9,                                  "vis-count-9",                         "Count specifier 9") \
 	X(ka_delete,                          DELETE_CHAR_NEXT,                 .i = VIS_MOVE_CHAR_NEXT,                  "vis-delete-char-next",                "Delete the next character") \
 	X(ka_delete,                          DELETE_CHAR_PREV,                 .i = VIS_MOVE_CHAR_PREV,                  "vis-delete-char-prev",                "Delete the previous character") \
 	X(ka_delete,                          DELETE_LINE_BEGIN,                .i = VIS_MOVE_LINE_BEGIN,                 "vis-delete-line-begin",               "Delete until the start of the current line") \
@@ -93,6 +103,8 @@ static Vis vis[1];
 	X(ka_movement_key,                    TO_LINE_RIGHT,                    .i = VIS_MOVE_TO_LINE_RIGHT,              "vis-motion-to-line-right",            "To the first occurrence of character to the right on the current line") \
 	X(ka_movement_key,                    TO_RIGHT,                         .i = VIS_MOVE_TO_RIGHT,                   "vis-motion-to-right",                 "To the first occurrence of character to the right") \
 	X(ka_nop,                             NOP,                              0,                                        "vis-nop",                             "Ignore key, do nothing") \
+	X(ka_helix_collapse,                  HELIX_COLLAPSE,                   0,                                        "vis-helix-collapse-selection",        "Collapse Helix selection") \
+	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \
@@ -850,9 +862,35 @@ static KEY_ACTION_FN(ka_replace)
 	return next;
 }
 
+static KEY_ACTION_FN(ka_helix_collapse)
+{
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
+		vis->helix_select = false;
+		for (Selection *s = view_selections(vis_view(vis)); s; s = view_selections_next(s)) {
+			size_t pos = view_cursors_pos(s);
+			view_selection_clear(s);
+			view_cursors_to(s, pos);
+		}
+	}
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_helix_select_toggle)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	vis->helix_select = !vis->helix_select;
+	if (vis->helix_select) {
+		for (Selection *s = view_selections(vis_view(vis)); s; s = view_selections_next(s))
+			s->anchored = true;
+	}
+	vis_draw(vis);
+	return keys;
+}
+
 static KEY_ACTION_FN(ka_count)
 {
-	int digit = keys[-1] - '0';
+	int digit = arg->i >= 0 ? arg->i : keys[-1] - '0';
 	int count = VIS_COUNT_DEFAULT(vis->action.count, 0);
 	if (0 <= digit && digit <= 9) {
 		if (digit == 0 && count == 0)
@@ -1150,6 +1188,10 @@ static KEY_ACTION_FN(ka_join)
 
 static KEY_ACTION_FN(ka_normalmode_escape)
 {
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select) {
+		vis->helix_select = false;
+		return keys;
+	}
 	if (vis->action.count == VIS_COUNT_UNKNOWN)
 		ka_selections_clear(vis, keys, arg);
 	else
