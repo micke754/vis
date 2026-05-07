@@ -51,10 +51,19 @@ Project priority has shifted for this fork:
 - Insert `<C-k>` kill-to-EOL behavior added.
 
 ### 4) Selection-first behavior progress
-- Implemented nuanced smart motion handlers for:
+- Word motions are now mostly C-backed under Helix selection semantics:
   - `w/e/b/W/E/B`
+- Removed old Lua `smart_word_motion()` feedkey wrappers.
+- Added Helix-style word categories:
+  - whitespace
+  - EOL
+  - word (`alnum` + `_`)
+  - punctuation runs
 - Fixed repeated-word-motion scope issues.
 - Fixed starting-character inclusion behavior for word motions.
+- Fixed punctuation handling (`-`, `.`, punctuation runs, `_` as word char).
+- Fixed mid-word partial selections for `w/e/b`.
+- Fixed horizontal whitespace inclusion for `w`/`b` selections.
 - Added collapse behavior (`;`) and visual-normal transitions.
 - Adjusted `hjkl` + goto keys behavior so they do not continue extending after selection-producing motions.
 
@@ -76,17 +85,35 @@ Project priority has shifted for this fork:
 5. Keep Lua profile switching as the public interface.
 
 ### B) Move hard word-motion semantics into gated C
-1. Keep/finalize cross-line `e` / `E` scope reset behind Helix semantics.
-2. Audit `w/e/b/W/E/B` repeated chains under Helix semantics.
-3. Simplify Lua smart motion wrappers once C owns the behavior.
-4. Ensure operators use the corrected range:
+Status: mostly complete.
+
+Done:
+1. Cross-line `e` / `E` scope reset is behind Helix semantics.
+2. `w/e/b/W/E/B` now use Helix-gated C motion/range logic.
+3. Lua smart motion wrappers were removed.
+4. Common edge cases fixed:
+   - punctuation tokens/runs
+   - `_` word membership
+   - first `w` selecting current word
+   - repeated `e`
+   - mid-word partial selections
+   - horizontal whitespace inclusion for `w`/`b`
+
+Remaining:
+1. Audit full operator matrix using corrected ranges:
    - `d`
    - `c`
    - `y`
+2. Continue checking line boundary / EOF cases.
+3. Longer-term: replace Vim visual-mode piggybacking with true Helix normal/select mode semantics.
 
 ### C) Remaining motion families
 1. Validate and refine `f/F/t/T` chain/reset semantics to match target Helix feel.
-2. Validate `n/N/*` selection/motion behavior in normal vs select flows.
+2. Search behavior:
+   - Normal mode `/`, `?`, `n`, `N`, `*` should move/search without entering selection.
+   - Helix profile sets `ignorecase` on.
+   - Visual-mode `n`, `N`, `*` now attempts to extend to full match/word.
+   - Known limitation: because current implementation piggybacks on Vim visual mode, some search-selection edge cases remain until a true Helix normal/select mode exists.
 3. Verify select-mode consistency across `v`, `V`, `x`, `X`, `;` and transitions.
 
 ### D) Validation matrix
@@ -98,12 +125,17 @@ Project priority has shifted for this fork:
 2. Decide and document any remaining deltas vs strict Helix behavior.
 
 ## Recommended next work session
-1. Add C-side Helix selection semantics flag/option.
-2. Gate the current cross-line `e` / `E` fix behind that flag.
-3. Wire `:set keymap helix` / `vim` to toggle the C flag.
-4. Rebuild and manually validate the known screenshot scenario.
-5. Add/repair focused tests once current test harness segfault is isolated.
-6. Continue moving brittle Lua smart-motion behavior into gated C.
+1. Commit current word-motion/search/keymap milestone.
+2. Run focused manual smoke:
+   - `w/e/b/W/E/B` over punctuation, whitespace, line boundary, EOF.
+   - visual `<Space>w`, `<Space>q`, `<`, `>`.
+   - normal `/`, `?`, `n`, `N`, `*` are motion-only.
+   - visual `n`, `N`, `*` extends to full common matches.
+3. Run operator matrix over word selections:
+   - `wd`, `ed`, `bd`, `wwd`, `eed`, `bbd`
+   - `c`/`y` equivalents.
+4. Move to `f/F/t/T` chain/reset semantics.
+5. Longer-term: design true Helix normal/select mode to remove remaining Vim visual-mode limitations.
 
 ## Notes for running on a different machine
 - If using packaged vis (e.g., Nix), runtime Lua path may be wrapped.

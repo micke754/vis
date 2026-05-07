@@ -23,6 +23,11 @@ static size_t search_word_forward(Vis *vis, Text *txt, size_t pos) {
 	if (regex) {
 		vis->search_direction = VIS_MOVE_SEARCH_REPEAT_FORWARD;
 		pos = text_search_forward(txt, pos, regex);
+		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->mode->visual) {
+			Filerange word = text_object_word(txt, pos);
+			if (text_range_valid(&word))
+				pos = text_char_prev(txt, word.end);
+		}
 	}
 	text_regex_free(regex);
 	return pos;
@@ -48,6 +53,13 @@ static size_t search_common(Vis *vis, Text *txt, size_t pos, bool backward) {
 		if (newpos == pos)
 			vis_info_show(vis, "Pattern not found: `%s'", pattern);
 		pos = newpos;
+		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->mode->visual && pattern) {
+			size_t len = strlen(pattern), end = pos;
+			while (len-- && end < text_size(txt))
+				end = text_char_next(txt, end);
+			if (end > pos)
+				pos = text_char_prev(txt, end);
+		}
 	}
 	text_regex_free(regex);
 	return pos;

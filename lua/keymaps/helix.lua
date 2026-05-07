@@ -79,9 +79,9 @@ local normal = {
 	{ "<", "<vis-operator-shift-left>", "Unindent" },
 	{ "/", "<vis-search-forward>", "Search forward" },
 	{ "?", "<vis-search-backward>", "Search backward" },
-	{ "n", "<vis-mode-visual-charwise><vis-motion-search-repeat-forward>", "Select next search match" },
-	{ "N", "<vis-mode-visual-charwise><vis-motion-search-repeat-backward>", "Select previous search match" },
-	{ "*", "<vis-mode-visual-charwise><vis-motion-search-word-forward>", "Select next word match" },
+	{ "n", "<vis-motion-search-repeat-forward>", "Next search match" },
+	{ "N", "<vis-motion-search-repeat-backward>", "Previous search match" },
+	{ "*", "<vis-motion-search-word-forward>", "Search word forward" },
 	{ "\"", "<vis-register>", "Select register" },
 
 	{ ";", "<vis-mode-normal>", "Collapse to cursor" },
@@ -128,6 +128,15 @@ local visual = {
 	{ "n", "<vis-motion-search-repeat-forward>", "Select next search match" },
 	{ "N", "<vis-motion-search-repeat-backward>", "Select previous search match" },
 	{ "*", "<vis-motion-search-word-forward>", "Select next word match" },
+	{ ":", "<vis-prompt-show>", "Open command prompt" },
+	{ ">", "<vis-operator-shift-right>", "Indent selection" },
+	{ "<", "<vis-operator-shift-left>", "Unindent selection" },
+	{ "<Space>w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ "<Space>q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ " q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ "u", "<vis-undo>", "Undo" },
+	{ "U", "<vis-redo>", "Redo" },
 	{ ";", "<vis-mode-normal>", "Collapse to cursor" },
 	{ "x", "<vis-mode-normal><vis-mode-visual-linewise>", "Switch to line selection" },
 	{ "X", "<vis-mode-normal><vis-mode-visual-linewise>", "Switch to line selection" },
@@ -151,6 +160,15 @@ local visual_line = {
 	{ "y", "<vis-operator-yank>", "Yank selection" },
 	{ "p", "<vis-put-after>", "Paste after" },
 	{ "P", "<vis-put-before>", "Paste before" },
+	{ ":", "<vis-prompt-show>", "Open command prompt" },
+	{ ">", "<vis-operator-shift-right>", "Indent selection" },
+	{ "<", "<vis-operator-shift-left>", "Unindent selection" },
+	{ "<Space>w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ "<Space>q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ " q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ "u", "<vis-undo>", "Undo" },
+	{ "U", "<vis-redo>", "Redo" },
 }
 
 local insert = {
@@ -187,6 +205,7 @@ end
 
 return {
 	apply = function(manager, win)
+		vis:command("set ignorecase on")
 		if not manager.shadow_defaults(win) then
 			return false
 		end
