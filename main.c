@@ -81,6 +81,7 @@ static Vis vis[1];
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_BACKWARD,    .i = VIS_MOVE_SEARCH_REPEAT_BACKWARD,     "vis-motion-search-repeat-backward",   "Move cursor to previous match in backward direction") \
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_FORWARD,     .i = VIS_MOVE_SEARCH_REPEAT_FORWARD,      "vis-motion-search-repeat-forward",    "Move cursor to next match in forward direction") \
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_REVERSE,     .i = VIS_MOVE_SEARCH_REPEAT_REVERSE,      "vis-motion-search-repeat-reverse",    "Move cursor to next match in opposite direction") \
+	X(ka_helix_search_word,               HELIX_SEARCH_WORD_FORWARD,        .i = +1,                                 "vis-helix-search-word-forward",       "Set search pattern to word under cursor") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_BACKWARD,      .i = VIS_MOVE_SEARCH_WORD_BACKWARD,       "vis-motion-search-word-backward",     "Move cursor to previous occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_FORWARD,       .i = VIS_MOVE_SEARCH_WORD_FORWARD,        "vis-motion-search-word-forward",      "Move cursor to next occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SENTENCE_NEXT,             .i = VIS_MOVE_SENTENCE_NEXT,              "vis-motion-sentence-next",            "Move cursor sentence forward") \
@@ -862,6 +863,31 @@ static KEY_ACTION_FN(ka_replace)
 	if (vis->mode->id == VIS_MODE_OPERATOR_PENDING)
 		vis_motion(vis, VIS_MOVE_CHAR_NEXT);
 	return next;
+}
+
+static KEY_ACTION_FN(ka_helix_search_word)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	Text *txt = vis_text(vis);
+	Selection *sel = view_selections_primary_get(vis_view(vis));
+	Filerange range = text_range_empty();
+	if (sel && sel->anchored)
+		range = view_selections_get(sel);
+	else if (sel)
+		range = text_object_word(txt, view_cursors_pos(sel));
+	if (!text_range_valid(&range))
+		return keys;
+	char *pattern = text_bytes_alloc0(txt, range.start, text_range_size(&range));
+	if (!pattern)
+		return keys;
+	register_put0(vis, &vis->registers[VIS_REG_SEARCH], pattern);
+	if (sel && !sel->anchored)
+		view_selections_set_directed(sel, &range, false);
+	vis->search_direction = arg->i > 0 ? VIS_MOVE_SEARCH_REPEAT_FORWARD : VIS_MOVE_SEARCH_REPEAT_BACKWARD;
+	vis_info_show(vis, "Search pattern set: %s", pattern);
+	free(pattern);
+	return keys;
 }
 
 static KEY_ACTION_FN(ka_helix_collapse)
