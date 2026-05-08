@@ -839,6 +839,22 @@ static size_t movement_apply(Vis *vis, Win *win, File *file, Text *txt, View *vi
 	return pos;
 }
 
+static Filerange helix_search_match_range(Vis *vis, Text *txt, size_t pos) {
+	if (pos >= text_size(txt))
+		return text_range_empty();
+	const char *pattern = register_get(vis, &vis->registers[VIS_REG_SEARCH], NULL);
+	Regex *regex = vis_regex(vis, pattern);
+	if (!regex)
+		return text_range_empty();
+
+	RegexMatch match[1];
+	Filerange range = text_range_empty();
+	if (!text_search_range_forward(txt, pos, text_size(txt) - pos, regex, 1, match, 0) && match[0].start == pos)
+		range = match[0];
+	text_regex_free(regex);
+	return range;
+}
+
 static bool helix_search_repeat(Vis *vis, Text *txt, Selection *sel, const Movement *movement, int count) {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX || vis->mode->visual ||
 	    !(movement == &vis_motions[VIS_MOVE_SEARCH_REPEAT_FORWARD] ||
@@ -865,8 +881,8 @@ static bool helix_search_repeat(Vis *vis, Text *txt, Selection *sel, const Movem
 		view_cursors_to(sel, pos);
 	}
 
-	Filerange match = text_range_empty();
-	if (size) {
+	Filerange match = helix_search_match_range(vis, txt, pos);
+	if (!text_range_valid(&match) && size) {
 		match.start = pos;
 		match.end = pos;
 		while (size-- && match.end < text_size(txt))

@@ -865,6 +865,22 @@ static KEY_ACTION_FN(ka_replace)
 	return next;
 }
 
+static char *helix_search_escape(const char *text) {
+	static const char special[] = ".[]\\()*+?{}|^$";
+	size_t len = strlen(text);
+	char *escaped = malloc(2 * len + 1);
+	if (!escaped)
+		return NULL;
+	char *out = escaped;
+	for (const char *in = text; *in; in++) {
+		if (strchr(special, *in))
+			*out++ = '\\';
+		*out++ = *in;
+	}
+	*out = '\0';
+	return escaped;
+}
+
 static KEY_ACTION_FN(ka_helix_search_word)
 {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
@@ -881,11 +897,17 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	char *pattern = text_bytes_alloc0(txt, range.start, text_range_size(&range));
 	if (!pattern)
 		return keys;
-	register_put0(vis, &vis->registers[VIS_REG_SEARCH], pattern);
+	char *escaped = helix_search_escape(pattern);
+	if (!escaped) {
+		free(pattern);
+		return keys;
+	}
+	register_put0(vis, &vis->registers[VIS_REG_SEARCH], escaped);
 	if (sel && !sel->anchored)
 		view_selections_set_directed(sel, &range, false);
 	vis->search_direction = arg->i > 0 ? VIS_MOVE_SEARCH_REPEAT_FORWARD : VIS_MOVE_SEARCH_REPEAT_BACKWARD;
 	vis_info_show(vis, "Search pattern set: %s", pattern);
+	free(escaped);
 	free(pattern);
 	return keys;
 }
