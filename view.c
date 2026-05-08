@@ -1248,6 +1248,23 @@ bool view_selections_set(Selection *s, Filerange r)
 	return true;
 }
 
+bool view_selections_set_directed(Selection *s, Filerange r, bool cursor_at_start) {
+	if (!view_selections_set(s, r))
+		return false;
+	s->anchored = true;
+	if (cursor_at_start && view_cursors_pos(s) != r.start)
+		view_selections_flip(s);
+	else if (!cursor_at_start) {
+		Text *txt = s->view->text;
+		size_t end = r.end > text_size(txt) ? text_size(txt) : r.end;
+		if (r.start != end)
+			end = text_char_prev(txt, end);
+		if (view_cursors_pos(s) != end)
+			view_selections_flip(s);
+	}
+	return true;
+}
+
 Filerange view_regions_restore(View *view, SelectionRegion s)
 {
 	Text *txt = view->text;

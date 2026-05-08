@@ -870,12 +870,8 @@ void vis_do(Vis *vis) {
 		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !vis->mode->visual &&
 		    !a->op && a->movement && helix_word_movement(a->movement)) {
 			bool backward = false;
-			if (helix_word_range(txt, sel, a->movement, count, vis->helix_select, &c.range, &backward)) {
-				view_selections_set(sel, &c.range);
-				sel->anchored = true;
-				if (backward && view_cursors_pos(sel) != c.range.start)
-					view_selections_flip(sel);
-			}
+			if (helix_word_range(txt, sel, a->movement, count, vis->helix_select, &c.range, &backward))
+				view_selections_set_directed(sel, &c.range, backward);
 			continue;
 		}
 
@@ -1063,10 +1059,7 @@ void vis_do(Vis *vis) {
 					     a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) && anchor < pos)
 						end = text_char_next(txt, pos);
 					Filerange range = text_range_new(anchor, end);
-					view_selections_set(sel, &range);
-					sel->anchored = true;
-					if (helix_word_prev && view_cursors_pos(sel) != range.start)
-						view_selections_flip(sel);
+					view_selections_set_directed(sel, &range, helix_word_prev);
 				} else if (helix_word_select) {
 					if (helix_word_count > 1 &&
 					    (a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
@@ -1119,10 +1112,7 @@ void vis_do(Vis *vis) {
 									end = text_char_next(txt, pos);
 								c.range = text_range_new(anchor, end);
 							}
-							view_selections_set(sel, &c.range);
-							sel->anchored = true;
-							if (helix_word_prev && view_cursors_pos(sel) != c.range.start)
-								view_selections_flip(sel);
+							view_selections_set_directed(sel, &c.range, helix_word_prev);
 						}
 				}
 			} else if (a->movement->type & INCLUSIVE && c.range.end > start) {

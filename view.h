@@ -232,6 +232,8 @@ VIS_INTERNAL Selection *view_selections_column_next(Selection *sel, int column);
 VIS_INTERNAL Filerange view_selections_get(Selection*);
 /** Set selection cover. Updates both cursor and anchor. */
 VIS_INTERNAL bool view_selections_set(Selection*, Filerange);
+/** Set selection cover and choose cursor side. */
+VIS_INTERNAL bool view_selections_set_directed(Selection*, Filerange, bool cursor_at_start);
 /**
  * Reduce selection to character currently covered by the cursor.
  * @rst
