@@ -128,6 +128,7 @@ done
 ```
 
 Last validation in this session: all pass.
+Manual QC: passed with flying colors. Paste differs from upstream Helix but is accepted/preferred for now.
 
 ## Known architectural debt
 
@@ -150,7 +151,9 @@ Desired future cleanup:
 
 ### 4. Paste semantics beyond basics
 - Basic `p/P`, `wyp`, `wyP` work.
-- Multi-selection paste replacement semantics and register slot behavior need more work.
+- Manual QC passed.
+- Current behavior is intentionally not identical to upstream Helix; user likes it and wants to leave it for now.
+- Revisit later only if explicitly desired: multi-selection paste, replacement semantics, register slot behavior.
 
 ## Recommended next work
 
@@ -166,11 +169,12 @@ Desired future cleanup:
    - keep all focused tests green.
 2. Search/select-mode parity:
    - `n/N` in `SEL`, selected patterns with whitespace, multi-selection.
-3. Paste parity:
+3. Multi-cursor Helix behavior.
+4. Paste parity only if reopened:
+   - current behavior is accepted/preferred despite differing from upstream Helix,
    - multi-selection behavior,
    - replacement semantics if selection active,
    - register slot behavior.
-4. Multi-cursor Helix behavior.
 
 ## Runtime notes
 - Source-built runtime command:

@@ -51,6 +51,7 @@
 - Paste:
   - `p/P` no longer replace implicit char/selection in Helix normal mode.
   - `wyp`, `wyP` tested.
+  - Manual QC passed. Behavior is not identical to upstream Helix, but user likes current feel. Revisit later; do not "fix" accidentally.
 - Find motions:
   - `f/t/F/T` no longer enter Vim visual mode in Helix normal mode.
   - mapped to cross-line C motions (`to/till`, not line-confined mappings).
@@ -95,6 +96,10 @@
   2. remove dead special cases once tests/manual smoke are stable,
   3. keep `view_selections_set_directed()` for direction-safe selections.
 
+## Manual QC status
+- Full manual checklist passed with flying colors after latest search/paste/find work.
+- Only note: paste intentionally differs from upstream Helix for now; leave as-is unless user explicitly reopens it.
+
 ## Manual QC checklist before next big work
 - Statusline: `NOR`, `SEL`, `INS`.
 - Word motions:
@@ -130,9 +135,9 @@
    - centralize Helix word helpers,
    - remove old special-case block in `vis.c` carefully.
 3. Then continue remaining Helix parity:
-   - paste replacement semantics over multiple selections,
    - search/select mode edge cases,
-   - multi-cursor Helix behavior.
+   - multi-cursor Helix behavior,
+   - paste parity only if user reopens it; current non-identical behavior is acceptable/preferred for now.
 
 ## Notes for moving machines
 - Commit or create a patch before switching devices.
