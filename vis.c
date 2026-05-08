@@ -975,6 +975,13 @@ static bool helix_word_start_movement(const Movement *movement) {
 	       movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV];
 }
 
+typedef struct {
+	int count;
+	bool initial_partial;
+	bool partial_start_next;
+	bool backward;
+} HelixWordMotionState;
+
 static bool helix_visual_word_adjust(Vis *vis, Text *txt, Selection *sel, const Movement *movement,
                                      size_t pos, int count, bool initial_partial, bool backward, Filerange *range) {
 	if (!vis->mode->visual || vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
@@ -998,8 +1005,7 @@ static bool helix_visual_word_adjust(Vis *vis, Text *txt, Selection *sel, const 
 }
 
 static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const Movement *movement,
-                                      int *count, size_t *pos, size_t *start, bool *initial_partial,
-                                      bool *partial_start_next, bool *backward) {
+                                      HelixWordMotionState *state, size_t *pos, size_t *start) {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
 		return;
 
@@ -1014,7 +1020,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 	if (!word_prev && !word_next)
 		return;
 
-	*backward = word_prev;
+	state->backward = word_prev;
 	size_t cursor = *pos;
 	size_t anchor = text_mark_get(txt, sel->anchor);
 	if (vis->helix_select && sel->anchored) {
@@ -1030,25 +1036,25 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 		Filerange word = helix_word_object(txt, movement, cursor);
 		if (text_range_valid(&word) && word.start < cursor && cursor < word.end) {
 			size_t word_last = text_char_prev(txt, word.end);
-			*initial_partial = true;
+			state->initial_partial = true;
 			if (movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
 			    movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT]) {
 				if (cursor != word_last)
-					*partial_start_next = true;
+					state->partial_start_next = true;
 				else
-					*initial_partial = false;
+					state->initial_partial = false;
 			} else if (movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
 			          movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) {
 				if (cursor == word_last)
-					*initial_partial = false;
+					state->initial_partial = false;
 			} else if (movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
 			         movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV]) {
 				cursor = word.start;
-				*count = 0;
+				state->count = 0;
 			}
 		}
 	} else if (word_prev && (anchor < cursor || (vis->helix_select && anchor > cursor))) {
-		if (vis->helix_select && anchor > cursor && *count > 0) {
+		if (vis->helix_select && anchor > cursor && state->count > 0) {
 			Filerange word = helix_word_object(txt, movement, cursor);
 			if (text_range_valid(&word) && word.start == cursor) {
 				size_t prev = cursor;
@@ -1061,7 +1067,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 				Filerange prevword = helix_word_object(txt, movement, prev);
 				if (text_range_valid(&prevword)) {
 					cursor = prevword.start;
-					(*count)--;
+					state->count--;
 				} else {
 					cursor = text_char_prev(txt, cursor);
 				}
@@ -1180,13 +1186,9 @@ void vis_do(Vis *vis) {
 		bool err = false;
 		if (a->movement) {
 			size_t start = pos;
-			int helix_word_count = count;
-			bool helix_word_initial_partial = false;
-			bool helix_word_partial_start_next = false;
-			bool helix_word_prev = false;
-			helix_visual_word_prepare(vis, txt, sel, a->movement, &count, &pos, &start,
-			                          &helix_word_initial_partial, &helix_word_partial_start_next,
-			                          &helix_word_prev);
+			HelixWordMotionState helix_word = { .count = count };
+			helix_visual_word_prepare(vis, txt, sel, a->movement, &helix_word, &pos, &start);
+			count = helix_word.count;
 			if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !vis->mode->visual &&
 			    !a->op && sel->anchored && !vis->helix_select)
 				view_selection_clear(sel);
@@ -1199,7 +1201,7 @@ void vis_do(Vis *vis) {
 				}
 			}
 
-			pos = helix_word_after_motion(vis, txt, a->movement, start, pos, helix_word_partial_start_next);
+			pos = helix_word_after_motion(vis, txt, a->movement, start, pos, helix_word.partial_start_next);
 			if (err) {
 				repeatable = false;
 				continue; // break?
@@ -1217,7 +1219,7 @@ void vis_do(Vis *vis) {
 			if (!a->op) {
 				if (helix_find_select(vis, txt, sel, a->movement, start, pos)) {
 					/* selection updated by helper */
-				} else if (helix_select_extend(vis, txt, sel, a->movement, pos, helix_word_prev)) {
+				} else if (helix_select_extend(vis, txt, sel, a->movement, pos, helix_word.backward)) {
 					/* selection updated by helper */
 				} else if (a->movement->type & CHARWISE) {
 					view_cursors_scroll_to(sel, pos);
@@ -1225,8 +1227,8 @@ void vis_do(Vis *vis) {
 					view_cursors_to(sel, pos);
 				}
 				if (vis->mode->visual)
-					helix_visual_word_adjust(vis, txt, sel, a->movement, pos, helix_word_count,
-					                         helix_word_initial_partial, helix_word_prev, &c.range);
+					helix_visual_word_adjust(vis, txt, sel, a->movement, pos, helix_word.count,
+					                         helix_word.initial_partial, helix_word.backward, &c.range);
 			} else if (a->movement->type & INCLUSIVE && c.range.end > start) {
 				c.range.end = text_char_next(txt, c.range.end);
 			} else if (linewise && (a->movement->type & LINEWISE_INCLUSIVE)) {
