@@ -904,6 +904,52 @@ static bool helix_find_select(Vis *vis, Text *txt, Selection *sel, const Movemen
 	return true;
 }
 
+static bool helix_visual_word_adjust(Vis *vis, Text *txt, Selection *sel, const Movement *movement,
+                                     size_t pos, int count, bool initial_partial, bool backward, Filerange *range) {
+	if (!vis->mode->visual || vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return false;
+
+	*range = view_selections_get(sel);
+	Filerange word = text_range_empty();
+	if (movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+	    movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
+	    movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
+	    movement == &vis_motions[VIS_MOVE_WORD_END_PREV])
+		word = text_object_word(txt, pos);
+	else if (movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT] ||
+	         movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT] ||
+	         movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV] ||
+	         movement == &vis_motions[VIS_MOVE_LONGWORD_END_PREV])
+		word = text_object_longword(txt, pos);
+
+	if (text_range_valid(&word) && !initial_partial && count == 1) {
+		if (movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
+		    movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT] ||
+		    movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
+		    movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV]) {
+			char ch;
+			while (word.end < text_size(txt) && text_byte_get(txt, word.end, &ch) &&
+			       ch != '\n' && isspace((unsigned char)ch))
+				word.end = text_char_next(txt, word.end);
+		}
+		*range = word;
+	}
+
+	if (vis->helix_select) {
+		size_t anchor = text_mark_get(txt, sel->anchor);
+		Filerange selection = view_selections_get(sel);
+		if (text_range_valid(&selection))
+			anchor = selection.start <= pos ? selection.start : selection.end;
+		size_t end = pos;
+		if ((movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
+		     movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) && anchor < pos)
+			end = text_char_next(txt, pos);
+		*range = text_range_new(anchor, end);
+		view_selections_set_directed(sel, range, backward);
+	}
+	return true;
+}
+
 void vis_do(Vis *vis) {
 	Win *win = vis->win;
 	if (!win)
@@ -1137,46 +1183,9 @@ void vis_do(Vis *vis) {
 				} else {
 					view_cursors_to(sel, pos);
 				}
-				if (vis->mode->visual) {
-					c.range = view_selections_get(sel);
-					if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
-						Filerange word = text_range_empty();
-						if (a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
-						    a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
-						    a->movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
-						    a->movement == &vis_motions[VIS_MOVE_WORD_END_PREV])
-							word = text_object_word(txt, pos);
-						else if (a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT] ||
-						         a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT] ||
-						         a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV] ||
-						         a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_PREV])
-							word = text_object_longword(txt, pos);
-						if (text_range_valid(&word) && !helix_word_initial_partial && helix_word_count == 1) {
-							if (a->movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
-							    a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_NEXT] ||
-							    a->movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
-							    a->movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV]) {
-								char ch;
-								while (word.end < text_size(txt) && text_byte_get(txt, word.end, &ch) &&
-								       ch != '\n' && isspace((unsigned char)ch))
-									word.end = text_char_next(txt, word.end);
-							}
-							c.range = word;
-						}
-					}
-					if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select) {
-						size_t anchor = text_mark_get(txt, sel->anchor);
-						Filerange selection = view_selections_get(sel);
-						if (text_range_valid(&selection))
-							anchor = selection.start <= pos ? selection.start : selection.end;
-						size_t end = pos;
-						if ((a->movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
-						     a->movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) && anchor < pos)
-							end = text_char_next(txt, pos);
-						c.range = text_range_new(anchor, end);
-						view_selections_set_directed(sel, &c.range, helix_word_prev);
-					}
-				}
+				if (vis->mode->visual)
+					helix_visual_word_adjust(vis, txt, sel, a->movement, pos, helix_word_count,
+					                         helix_word_initial_partial, helix_word_prev, &c.range);
 			} else if (a->movement->type & INCLUSIVE && c.range.end > start) {
 				c.range.end = text_char_next(txt, c.range.end);
 			} else if (linewise && (a->movement->type & LINEWISE_INCLUSIVE)) {
