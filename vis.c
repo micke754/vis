@@ -1122,7 +1122,9 @@ void vis_do(Vis *vis) {
 			}
 		} else if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX &&
 		           !vis->mode->visual && a->op) {
-			if (sel->anchored) {
+			if (a->op == &vis_operators[VIS_OP_PUT_AFTER]) {
+				c.range = text_range_empty();
+			} else if (sel->anchored) {
 				c.range = view_selections_get(sel);
 			} else {
 				c.range.start = pos;
@@ -1188,8 +1190,11 @@ void vis_do(Vis *vis) {
 			if (pos == EPOS) {
 				view_selections_dispose(sel);
 			} else if (pos <= text_size(txt)) {
-				view_selection_clear(sel);
-				view_cursors_to(sel, pos);
+				if (!(vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX &&
+				      a->op == &vis_operators[VIS_OP_YANK])) {
+					view_selection_clear(sel);
+					view_cursors_to(sel, pos);
+				}
 			}
 		}
 	}
