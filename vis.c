@@ -921,6 +921,39 @@ static bool helix_select_extend(Vis *vis, Text *txt, Selection *sel, const Movem
 	return true;
 }
 
+static bool helix_put_context(Vis *vis, Text *txt, Selection *sel, const Action *action, OperatorContext *context) {
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX ||
+	    action->op != &vis_operators[VIS_OP_PUT_AFTER])
+		return false;
+
+	if (sel->anchored) {
+		Filerange selection = view_selections_get(sel);
+		if (text_range_valid(&selection)) {
+			if (action->arg.i == VIS_OP_PUT_BEFORE || action->arg.i == VIS_OP_PUT_BEFORE_END)
+				context->pos = selection.start;
+			else
+				context->pos = text_char_prev(txt, selection.end);
+		}
+	}
+	context->range = text_range_empty();
+	return true;
+}
+
+static bool helix_operator_context(Vis *vis, Text *txt, Selection *sel, const Action *action, OperatorContext *context) {
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX || vis->mode->visual || !action->op)
+		return false;
+
+	if (helix_put_context(vis, txt, sel, action, context))
+		return true;
+	if (sel->anchored) {
+		context->range = view_selections_get(sel);
+	} else {
+		context->range.start = context->pos;
+		context->range.end = text_char_next(txt, context->pos);
+	}
+	return true;
+}
+
 static bool helix_visual_word_adjust(Vis *vis, Text *txt, Selection *sel, const Movement *movement,
                                      size_t pos, int count, bool initial_partial, bool backward, Filerange *range) {
 	if (!vis->mode->visual || vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
@@ -1203,25 +1236,7 @@ void vis_do(Vis *vis) {
 			} else if (linewise && (a->movement->type & LINEWISE_INCLUSIVE)) {
 				c.range.end = text_char_next(txt, c.range.end);
 			}
-		} else if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX &&
-		           !vis->mode->visual && a->op) {
-			if (a->op == &vis_operators[VIS_OP_PUT_AFTER]) {
-				if (sel->anchored) {
-					Filerange selection = view_selections_get(sel);
-					if (text_range_valid(&selection)) {
-						if (a->arg.i == VIS_OP_PUT_BEFORE || a->arg.i == VIS_OP_PUT_BEFORE_END)
-							c.pos = selection.start;
-						else
-							c.pos = text_char_prev(txt, selection.end);
-					}
-				}
-				c.range = text_range_empty();
-			} else if (sel->anchored) {
-				c.range = view_selections_get(sel);
-			} else {
-				c.range.start = pos;
-				c.range.end = text_char_next(txt, pos);
-			}
+		} else if (helix_operator_context(vis, txt, sel, a, &c)) {
 		} else if (a->textobj) {
 			if (vis->mode->visual)
 				c.range = view_selections_get(sel);
@@ -1278,16 +1293,7 @@ void vis_do(Vis *vis) {
 		if (a->op) {
 			if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
 				vis->helix_select = false;
-				if (a->op == &vis_operators[VIS_OP_PUT_AFTER] && sel->anchored) {
-					Filerange selection = view_selections_get(sel);
-					if (text_range_valid(&selection)) {
-						if (a->arg.i == VIS_OP_PUT_BEFORE || a->arg.i == VIS_OP_PUT_BEFORE_END)
-							c.pos = selection.start;
-						else
-							c.pos = text_char_prev(txt, selection.end);
-						c.range = text_range_empty();
-					}
-				}
+				helix_put_context(vis, txt, sel, a, &c);
 			}
 			size_t pos = a->op->func(vis, txt, &c);
 			if (pos == EPOS) {

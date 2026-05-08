@@ -27,6 +27,13 @@ describe("helix paste", function()
 		assert.are.same("1 banana 2 banana 3 4\n", content())
 	end)
 
+	it("P inserts before cursor without replacing character", function()
+		reset("1 banana 2 3 4\n", 10)
+		vis.registers['\"'] = { "banana " }
+		vis:feedkeys("P")
+		assert.are.same("1 banana 2banana  3 4\n", content())
+	end)
+
 	it("wyp pastes after selected word", function()
 		reset("1 banana 2 3 4\n", 2)
 		vis:feedkeys("wyp")
