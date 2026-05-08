@@ -58,8 +58,8 @@ local normal = {
 
 	{ "v", "<vis-helix-select-toggle>", "Select mode" },
 	{ "V", "<vis-mode-visual-linewise>", "Line select mode" },
-	{ "x", "<vis-mode-visual-linewise>", "Select current line" },
-	{ "X", "<vis-mode-visual-linewise>", "Select current line" },
+	{ "x", "<vis-helix-line-select>", "Select current line" },
+	{ "X", "<vis-helix-line-select-current>", "Select current line" },
 	{ "i", "<vis-mode-insert>", "Insert mode" },
 	{ "a", "<vis-append-char-next>", "Append mode" },
 	{ "I", "<vis-insert-line-start>", "Insert at line start" },

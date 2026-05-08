@@ -104,6 +104,8 @@ static Vis vis[1];
 	X(ka_movement_key,                    TO_RIGHT,                         .i = VIS_MOVE_TO_RIGHT,                   "vis-motion-to-right",                 "To the first occurrence of character to the right") \
 	X(ka_nop,                             NOP,                              0,                                        "vis-nop",                             "Ignore key, do nothing") \
 	X(ka_helix_collapse,                  HELIX_COLLAPSE,                   0,                                        "vis-helix-collapse-selection",        "Collapse Helix selection") \
+	X(ka_helix_line_select,               HELIX_LINE_SELECT,                .b = true,                                "vis-helix-line-select",               "Select Helix line") \
+	X(ka_helix_line_select,               HELIX_LINE_SELECT_CURRENT,        .b = false,                               "vis-helix-line-select-current",       "Select current Helix line") \
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
@@ -875,14 +877,50 @@ static KEY_ACTION_FN(ka_helix_collapse)
 	return keys;
 }
 
+static KEY_ACTION_FN(ka_helix_line_select)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	Text *txt = vis_text(vis);
+	int count = VIS_COUNT_DEFAULT(vis->action.count, 1);
+	for (Selection *s = view_selections(vis_view(vis)); s; s = view_selections_next(s)) {
+		size_t pos = view_cursors_pos(s);
+		Filerange range;
+		if (arg->b && s->anchored) {
+			range = view_selections_get(s);
+			range.start = text_line_begin(txt, range.start);
+			range.end = text_line_begin(txt, range.end);
+			if (range.end <= range.start)
+				range.end = text_line_next(txt, range.start);
+		} else {
+			range.start = text_line_begin(txt, pos);
+			range.end = range.start;
+		}
+		for (int i = 0; i < count; i++)
+			range.end = text_line_next(txt, range.end);
+		view_selections_set(s, &range);
+		s->anchored = true;
+	}
+	vis->action.count = VIS_COUNT_UNKNOWN;
+	vis_draw(vis);
+	return keys;
+}
+
 static KEY_ACTION_FN(ka_helix_select_toggle)
 {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
 		return keys;
 	vis->helix_select = !vis->helix_select;
 	if (vis->helix_select) {
-		for (Selection *s = view_selections(vis_view(vis)); s; s = view_selections_next(s))
+		Text *txt = vis_text(vis);
+		for (Selection *s = view_selections(vis_view(vis)); s; s = view_selections_next(s)) {
+			size_t pos = view_cursors_pos(s);
+			char ch;
+			if (pos > text_line_begin(txt, pos) &&
+			    (!text_byte_get(txt, pos, &ch) || ch == '\n'))
+				view_cursors_to(s, text_char_prev(txt, pos));
 			s->anchored = true;
+		}
 	}
 	vis_draw(vis);
 	return keys;
