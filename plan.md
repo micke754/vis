@@ -104,8 +104,10 @@ Current mappings use cross-line motions:
 - `*` does not immediately jump.
 - Shows concise info message:
   - `Search pattern set: <pattern>`
-- `n/N` after `*` selects match width.
-- `*;n` / `*;N` still select full pattern width by using search-register length.
+- `*` searches selected text literally, escaping regex metacharacters.
+- `n/N` after `*` selects actual match width.
+- `*;n` / `*;N` still select full pattern width after collapse.
+- `/` regex repeat also selects actual regex match width.
 
 ## Regression suites
 Focused Helix tests currently present:
@@ -114,6 +116,7 @@ Focused Helix tests currently present:
 - `test/lua/keymap-helix-line.lua`
 - `test/lua/keymap-helix-operator.lua`
 - `test/lua/keymap-helix-paste.lua`
+- `test/lua/keymap-helix-profile.lua`
 - `test/lua/keymap-helix-regression.lua`
 - `test/lua/keymap-helix-search.lua`
 - `test/lua/keymap-helix-select.lua`
@@ -122,7 +125,7 @@ Run all:
 ```sh
 make -j2
 cd test/lua
-for t in keymap-helix-search.lua keymap-helix-paste.lua keymap-helix-find.lua keymap-helix-count.lua keymap-helix-select.lua keymap-helix-line.lua keymap-helix-regression.lua keymap-helix-operator.lua; do
+for t in keymap-helix-profile.lua keymap-helix-search.lua keymap-helix-paste.lua keymap-helix-find.lua keymap-helix-count.lua keymap-helix-select.lua keymap-helix-line.lua keymap-helix-regression.lua keymap-helix-operator.lua; do
   LD_LIBRARY_PATH=../../dependency/install/usr/lib ./test.sh $t || exit 1
 done
 ```
@@ -140,14 +143,18 @@ Current places:
 Desired future cleanup:
 - centralize token/range logic into one C API.
 
-### 2. Old Helix word special-case code still exists
+### 2. Old Helix word compatibility code still exists
 - `vis.c` now has an early Helix word path for normal/select word motions.
-- Old special cases in generic motion handling remain mostly bypassed for these paths.
-- Do not delete casually; first verify visual/Vim fallback impact.
+- Old generic movement special cases were reduced and extracted into helpers:
+  - `helix_visual_word_prepare`
+  - `helix_visual_word_adjust`
+  - `helix_word_after_motion`
+  - `helix_select_extend`
+- Remaining code appears to protect visual/Vim fallback behavior. Do not delete casually; first verify visual/Vim impact.
 
 ### 3. Search/select behavior still partial
-- Normal `*`, `n/N` behavior improved.
-- Select-mode and multi-selection search semantics still need deeper Helix parity.
+- Normal/select `*`, `n/N` behavior improved and covered for literal punctuation, whitespace, collapse, and regex match width.
+- Multi-selection search semantics still need deeper Helix parity.
 
 ### 4. Paste semantics beyond basics
 - Basic `p/P`, `wyp`, `wyP` work.
