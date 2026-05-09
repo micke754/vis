@@ -85,6 +85,7 @@ Implemented/tested basics:
 - `P` inserts before cursor/selection edge.
 - `wyp`
 - `wyP`
+- multicursor paste repeats the last register slot when there are more selections than register values.
 
 ### Find motions
 Helix normal mappings no longer enter Vim visual mode:
@@ -121,6 +122,7 @@ Current mappings use cross-line motions:
   - `Y` joins and yanks selections with newline separators.
   - `K` / `Alt-K` keep/remove selections matching regex.
   - `ms`, `md`, `mr` cover add/delete/replace surround pairs for common delimiters.
+  - `mi` / `ma` cover inner/outer textobject selections for words, WORDs, paragraphs, and common delimiters.
 
 ### Search
 - `*` sets search pattern from current selection or word under cursor.
@@ -178,13 +180,17 @@ Desired future cleanup:
 
 ### 3. Search/select behavior still partial
 - Normal/select `*`, `n/N` behavior improved and covered for literal punctuation, whitespace, collapse, and regex match width.
-- Multi-selection search semantics still need deeper Helix parity.
+- Multi-selection search semantics are good enough for current daily-driver use; deeper parity deferred.
 
-### 4. Paste semantics beyond basics
-- Basic `p/P`, `wyp`, `wyP` work.
-- Manual QC passed.
-- Current behavior is intentionally not identical to upstream Helix; user likes it and wants to leave it for now.
-- Revisit later only if explicitly desired: multi-selection paste, replacement semantics, register slot behavior.
+### 4. Surround/textobject helpers live in `main.c`
+- `ms`, `md`, `mr`, `mi`, `ma` are covered for common cases.
+- Future cleanup can move these helpers to a dedicated C module.
+
+### Deferred
+- Selection-content rotation (`Alt-(`/`Alt-)`).
+- Advanced multi-cursor/shell filter commands beyond current daily-driver set.
+- Split-window/profile lifecycle segfault.
+- Strict upstream paste parity unless explicitly reopened.
 
 ## Recommended next work
 
@@ -198,17 +204,13 @@ Desired future cleanup:
    - move/centralize Helix token helpers,
    - remove dead special cases carefully,
    - keep all focused tests green.
-2. Search/select-mode parity:
-   - `n/N` in `SEL`, selected patterns with whitespace, multi-selection.
-3. Continue Helix parity polish:
-   - selection-content rotation (`Alt-(`/`Alt-)`) if desired,
-   - deeper paste parity for mismatched register slot counts,
-   - audit surround edge cases and textobject match behavior.
-4. Paste parity only if reopened:
+2. Surround/textobject cleanup:
+   - move helpers out of `main.c` if they keep growing,
+   - add regressions for any manual edge bugs.
+3. Paste parity only if reopened:
    - current behavior is accepted/preferred despite differing from upstream Helix,
-   - multi-selection behavior,
    - replacement semantics if selection active,
-   - register slot behavior.
+   - linewise/distribution edge cases.
 
 ## Runtime notes
 - Source-built runtime command:
