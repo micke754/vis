@@ -119,6 +119,8 @@ Current mappings use cross-line motions:
   - `s` selects regex matches inside selections.
   - `S` splits selections by regex matches.
   - `Y` joins and yanks selections with newline separators.
+  - `K` / `Alt-K` keep/remove selections matching regex.
+  - `ms`, `md`, `mr` cover add/delete/replace surround pairs for common delimiters.
 
 ### Search
 - `*` sets search pattern from current selection or word under cursor.
@@ -198,10 +200,10 @@ Desired future cleanup:
    - keep all focused tests green.
 2. Search/select-mode parity:
    - `n/N` in `SEL`, selected patterns with whitespace, multi-selection.
-3. Continue multi-cursor Helix behavior:
-   - keep/remove selections matching regex (`K` / `Alt-K`),
+3. Continue Helix parity polish:
    - selection-content rotation (`Alt-(`/`Alt-)`) if desired,
-   - deeper paste parity for mismatched register slot counts.
+   - deeper paste parity for mismatched register slot counts,
+   - audit surround edge cases and textobject match behavior.
 4. Paste parity only if reopened:
    - current behavior is accepted/preferred despite differing from upstream Helix,
    - multi-selection behavior,
