@@ -73,6 +73,11 @@ local normal = {
 	{ "y", "<vis-operator-yank>", "Yank selection" },
 	{ "p", "<vis-put-after>", "Paste after" },
 	{ "P", "<vis-put-before>", "Paste before" },
+	{ "C", "<vis-selection-new-lines-below>", "Copy selection to next line" },
+	{ "<M-C>", "<vis-selection-new-lines-above>", "Copy selection to previous line" },
+	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
+	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
+	{ "&", "<vis-selections-align>", "Align selections" },
 	{ "d", "<vis-operator-delete>", "Delete selection" },
 	{ "c", "<vis-operator-change>", "Change selection" },
 	{ ">", "<vis-operator-shift-right>", "Indent" },
@@ -145,6 +150,11 @@ local visual = {
 	{ "y", "<vis-operator-yank>", "Yank selection" },
 	{ "p", "<vis-put-after>", "Paste after" },
 	{ "P", "<vis-put-before>", "Paste before" },
+	{ "C", "<vis-selection-new-lines-below>", "Copy selection to next line" },
+	{ "<M-C>", "<vis-selection-new-lines-above>", "Copy selection to previous line" },
+	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
+	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
+	{ "&", "<vis-selections-align>", "Align selections" },
 }
 
 local visual_line = {
@@ -169,6 +179,11 @@ local visual_line = {
 	{ " q", "<vis-prompt-show>q<Enter>", "Quit window" },
 	{ "u", "<vis-undo>", "Undo" },
 	{ "U", "<vis-redo>", "Redo" },
+	{ "C", "<vis-selection-new-lines-below>", "Copy selection to next line" },
+	{ "<M-C>", "<vis-selection-new-lines-above>", "Copy selection to previous line" },
+	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
+	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
+	{ "&", "<vis-selections-align>", "Align selections" },
 }
 
 local insert = {
