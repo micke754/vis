@@ -112,6 +112,7 @@ static Vis vis[1];
 	X(ka_helix_rotate_selection,           HELIX_ROTATE_SELECTION_RIGHT,     .i = +1,                                  "vis-helix-rotate-selection-right",    "Rotate primary selection forward") \
 	X(ka_helix_select_all,                 HELIX_SELECT_ALL,                 0,                                        "vis-helix-select-all",                "Select entire file") \
 	X(ka_helix_select_split_lines,         HELIX_SPLIT_LINES,                0,                                        "vis-helix-split-selection-lines",     "Split selections on newlines") \
+	X(ka_prompt_show,                     HELIX_SELECT_REGEX_PROMPT,        .s = "s",                                 "vis-helix-select-regex-prompt",       "Select regex matches") \
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
