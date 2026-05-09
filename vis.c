@@ -855,11 +855,13 @@ static Filerange helix_search_match_range(Vis *vis, Text *txt, size_t pos) {
 	return range;
 }
 
-static bool helix_search_repeat(Vis *vis, Text *txt, Selection *sel, const Movement *movement, int count) {
+static bool helix_search_repeat(Vis *vis, Text *txt, View *view, Selection *sel, const Movement *movement, int count) {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX || vis->mode->visual ||
 	    !(movement == &vis_motions[VIS_MOVE_SEARCH_REPEAT_FORWARD] ||
 	      movement == &vis_motions[VIS_MOVE_SEARCH_REPEAT_BACKWARD]))
 		return false;
+	if (sel != view_selections_primary_get(view))
+		return true;
 
 	size_t size = 0;
 	if (sel->anchored) {
@@ -1188,7 +1190,7 @@ void vis_do(Vis *vis) {
 
 		last_reg_slot = c.reg_slot;
 
-		if (!a->op && a->movement && helix_search_repeat(vis, txt, sel, a->movement, count))
+		if (!a->op && a->movement && helix_search_repeat(vis, txt, view, sel, a->movement, count))
 			continue;
 
 		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !vis->mode->visual &&

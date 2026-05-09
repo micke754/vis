@@ -865,20 +865,15 @@ static KEY_ACTION_FN(ka_replace)
 	return next;
 }
 
-static char *helix_search_escape(const char *text) {
+static bool helix_search_escape_append(Buffer *buf, const char *text) {
 	static const char special[] = ".[]\\()*+?{}|^$";
-	size_t len = strlen(text);
-	char *escaped = malloc(2 * len + 1);
-	if (!escaped)
-		return NULL;
-	char *out = escaped;
 	for (const char *in = text; *in; in++) {
-		if (strchr(special, *in))
-			*out++ = '\\';
-		*out++ = *in;
+		if (strchr(special, *in) && !buffer_append(buf, "\\", 1))
+			return false;
+		if (!buffer_append(buf, in, 1))
+			return false;
 	}
-	*out = '\0';
-	return escaped;
+	return true;
 }
 
 static KEY_ACTION_FN(ka_helix_search_word)
@@ -886,29 +881,42 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
 		return keys;
 	Text *txt = vis_text(vis);
-	Selection *sel = view_selections_primary_get(vis_view(vis));
-	Filerange range = text_range_empty();
-	if (sel && sel->anchored)
-		range = view_selections_get(sel);
-	else if (sel)
-		range = text_object_word(txt, view_cursors_pos(sel));
-	if (!text_range_valid(&range))
-		return keys;
-	char *pattern = text_bytes_alloc0(txt, range.start, text_range_size(&range));
-	if (!pattern)
-		return keys;
-	char *escaped = helix_search_escape(pattern);
-	if (!escaped) {
-		free(pattern);
+	View *view = vis_view(vis);
+	Buffer pattern = {0}, message = {0};
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		Filerange range = sel->anchored ? view_selections_get(sel) : text_object_word(txt, view_cursors_pos(sel));
+		if (!text_range_valid(&range))
+			continue;
+		char *fragment = text_bytes_alloc0(txt, range.start, text_range_size(&range));
+		if (!fragment)
+			continue;
+		if (buffer_length0(&pattern) && !buffer_append(&pattern, "|", 1)) {
+			free(fragment);
+			break;
+		}
+		if (!helix_search_escape_append(&pattern, fragment)) {
+			free(fragment);
+			break;
+		}
+		if (buffer_length0(&message) && !buffer_append(&message, "|", 1)) {
+			free(fragment);
+			break;
+		}
+		buffer_append(&message, fragment, strlen(fragment));
+		if (!sel->anchored)
+			view_selections_set_directed(sel, &range, false);
+		free(fragment);
+	}
+	if (!buffer_length0(&pattern)) {
+		buffer_release(&pattern);
+		buffer_release(&message);
 		return keys;
 	}
-	register_put0(vis, &vis->registers[VIS_REG_SEARCH], escaped);
-	if (sel && !sel->anchored)
-		view_selections_set_directed(sel, &range, false);
+	register_put0(vis, &vis->registers[VIS_REG_SEARCH], buffer_content0(&pattern));
 	vis->search_direction = arg->i > 0 ? VIS_MOVE_SEARCH_REPEAT_FORWARD : VIS_MOVE_SEARCH_REPEAT_BACKWARD;
-	vis_info_show(vis, "Search pattern set: %s", pattern);
-	free(escaped);
-	free(pattern);
+	vis_info_show(vis, "Search pattern set: %s", buffer_content0(&message));
+	buffer_release(&pattern);
+	buffer_release(&message);
 	return keys;
 }
 
