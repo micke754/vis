@@ -53,6 +53,39 @@ static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	return true;
 }
 
+static bool prompt_helix_keep_remove_regex(Vis *vis, const char *pattern, bool remove) {
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return false;
+	Win *win = vis->win;
+	if (!win)
+		return false;
+	Text *txt = win->file->text;
+	Regex *regex = prompt_helix_regex(vis, pattern);
+	if (!regex)
+		return true;
+	FilerangeList ranges = {0};
+	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
+		Filerange selection = view_selections_get(sel);
+		if (!text_range_valid(&selection) || selection.start == selection.end)
+			selection = text_range_new(view_cursors_pos(sel), text_char_next(txt, view_cursors_pos(sel)));
+		bool matches = false;
+		if (text_range_valid(&selection) && selection.start < selection.end) {
+			RegexMatch match[1];
+			matches = text_search_range_forward(txt, selection.start, selection.end - selection.start, regex, 1, match, 0) == 0 &&
+			          match[0].start != EPOS && match[0].end != EPOS && match[0].start < selection.end;
+		}
+		if (matches != remove)
+			*da_push(vis, &ranges) = selection;
+	}
+	text_regex_free(regex);
+	if (ranges.count)
+		view_selections_set_all(&win->view, ranges, true);
+	else
+		vis_info_show(vis, "no selections remaining");
+	free(ranges.data);
+	return true;
+}
+
 static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
 		return false;
@@ -103,6 +136,10 @@ bool vis_prompt_cmd(Vis *vis, const char *cmd) {
 			return prompt_helix_select_regex(vis, cmd);
 		case HELIX_PROMPT_SPLIT_REGEX:
 			return prompt_helix_split_regex(vis, cmd);
+		case HELIX_PROMPT_KEEP_REGEX:
+			return prompt_helix_keep_remove_regex(vis, cmd, false);
+		case HELIX_PROMPT_REMOVE_REGEX:
+			return prompt_helix_keep_remove_regex(vis, cmd, true);
 		case HELIX_PROMPT_NONE:
 			break;
 		}
