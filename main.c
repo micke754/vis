@@ -107,6 +107,7 @@ static Vis vis[1];
 	X(ka_helix_collapse,                  HELIX_COLLAPSE,                   0,                                        "vis-helix-collapse-selection",        "Collapse Helix selection") \
 	X(ka_helix_line_select,               HELIX_LINE_SELECT,                .b = true,                                "vis-helix-line-select",               "Select Helix line") \
 	X(ka_helix_line_select,               HELIX_LINE_SELECT_CURRENT,        .b = false,                               "vis-helix-line-select-current",       "Select current Helix line") \
+	X(ka_helix_select_split_lines,         HELIX_SPLIT_LINES,                0,                                        "vis-helix-split-selection-lines",     "Split selections on newlines") \
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
@@ -917,6 +918,40 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	vis_info_show(vis, "Search pattern set: %s", buffer_content0(&message));
 	buffer_release(&pattern);
 	buffer_release(&message);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_helix_select_split_lines)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	View *view = vis_view(vis);
+	Text *txt = vis_text(vis);
+	FilerangeList ranges = {0};
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		Filerange range = view_selections_get(sel);
+		if (!text_range_valid(&range)) {
+			*da_push(vis, &ranges) = text_range_new(view_cursors_pos(sel), view_cursors_pos(sel));
+			continue;
+		}
+		if (range.start == range.end) {
+			*da_push(vis, &ranges) = range;
+			continue;
+		}
+		size_t start = range.start;
+		while (start < range.end) {
+			size_t line_end = text_line_end(txt, start);
+			if (line_end > range.end)
+				line_end = range.end;
+			*da_push(vis, &ranges) = text_range_new(start, line_end);
+			start = text_line_next(txt, start);
+			if (start <= line_end)
+				break;
+		}
+	}
+	if (ranges.count)
+		view_selections_set_all(view, ranges, true);
+	free(ranges.data);
 	return keys;
 }
 

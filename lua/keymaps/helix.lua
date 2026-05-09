@@ -78,6 +78,7 @@ local normal = {
 	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
 	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
 	{ "&", "<vis-selections-align>", "Align selections" },
+	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 	{ "d", "<vis-operator-delete>", "Delete selection" },
 	{ "c", "<vis-operator-change>", "Change selection" },
 	{ ">", "<vis-operator-shift-right>", "Indent" },
@@ -155,6 +156,7 @@ local visual = {
 	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
 	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
 	{ "&", "<vis-selections-align>", "Align selections" },
+	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 }
 
 local visual_line = {
@@ -184,6 +186,7 @@ local visual_line = {
 	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
 	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
 	{ "&", "<vis-selections-align>", "Align selections" },
+	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 }
 
 local insert = {
