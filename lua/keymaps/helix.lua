@@ -35,6 +35,40 @@ for _, from in ipairs(surround_delete) do
 	end
 end
 
+local textobjects_inner = {
+	{ "w", "<vis-textobject-word-inner>", "Select inner word" },
+	{ "W", "<vis-textobject-bigword-inner>", "Select inner WORD" },
+	{ "p", "<vis-textobject-paragraph>", "Select paragraph" },
+	{ "(", "<vis-textobject-parenthesis-inner>", "Select inner ()" },
+	{ ")", "<vis-textobject-parenthesis-inner>", "Select inner ()" },
+	{ "[", "<vis-textobject-square-bracket-inner>", "Select inner []" },
+	{ "]", "<vis-textobject-square-bracket-inner>", "Select inner []" },
+	{ "{", "<vis-textobject-curly-bracket-inner>", "Select inner {}" },
+	{ "}", "<vis-textobject-curly-bracket-inner>", "Select inner {}" },
+	{ "<", "<vis-textobject-angle-bracket-inner>", "Select inner <>" },
+	{ ">", "<vis-textobject-angle-bracket-inner>", "Select inner <>" },
+	{ '"', "<vis-textobject-quote-inner>", "Select inner quotes" },
+	{ "'", "<vis-textobject-single-quote-inner>", "Select inner single quotes" },
+	{ "`", "<vis-textobject-backtick-inner>", "Select inner backticks" },
+}
+
+local textobjects_outer = {
+	{ "w", "<vis-textobject-word-outer>", "Select around word" },
+	{ "W", "<vis-textobject-bigword-outer>", "Select around WORD" },
+	{ "p", "<vis-textobject-paragraph-outer>", "Select around paragraph" },
+	{ "(", "<vis-textobject-parenthesis-outer>", "Select around ()" },
+	{ ")", "<vis-textobject-parenthesis-outer>", "Select around ()" },
+	{ "[", "<vis-textobject-square-bracket-outer>", "Select around []" },
+	{ "]", "<vis-textobject-square-bracket-outer>", "Select around []" },
+	{ "{", "<vis-textobject-curly-bracket-outer>", "Select around {}" },
+	{ "}", "<vis-textobject-curly-bracket-outer>", "Select around {}" },
+	{ "<", "<vis-textobject-angle-bracket-outer>", "Select around <>" },
+	{ ">", "<vis-textobject-angle-bracket-outer>", "Select around <>" },
+	{ '"', "<vis-textobject-quote-outer>", "Select around quotes" },
+	{ "'", "<vis-textobject-single-quote-outer>", "Select around single quotes" },
+	{ "`", "<vis-textobject-backtick-outer>", "Select around backticks" },
+}
+
 local normal = {
 	{ "<Escape>", "<vis-mode-normal-escape>", "Return to normal mode" },
 	{ ":", "<vis-prompt-show>", "Open command prompt" },
@@ -310,6 +344,12 @@ return {
 	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "md", surround_delete) and
 	       map_prefixed(manager, win, vis.modes.NORMAL, "mr", surround_replace) and
 	       map_prefixed(manager, win, vis.modes.VISUAL, "mr", surround_replace) and
-	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "mr", surround_replace)
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "mr", surround_replace) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "mi", textobjects_inner) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "mi", textobjects_inner) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "mi", textobjects_inner) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "ma", textobjects_outer) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "ma", textobjects_outer) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ma", textobjects_outer)
 	end,
 }

@@ -932,6 +932,7 @@ static KEY_ACTION_FN(ka_helix_surround_add)
 		text_insert(vis, txt, range.end, close, sizeof close);
 		text_insert(vis, txt, range.start, open, sizeof open);
 	}
+	vis_draw(vis);
 	return keys;
 }
 
@@ -955,6 +956,7 @@ static KEY_ACTION_FN(ka_helix_surround_delete)
 		text_delete_range(txt, &close);
 		text_delete_range(txt, &open);
 	}
+	vis_draw(vis);
 	return keys;
 }
 
@@ -1223,6 +1225,44 @@ static KEY_ACTION_FN(ka_movement)
 
 static KEY_ACTION_FN(ka_text_object)
 {
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
+		const TextObject *textobj = NULL;
+		if (arg->i < LENGTH(vis_textobjects))
+			textobj = vis_textobjects + arg->i;
+		else if ((VisDACount)arg->i - LENGTH(vis_textobjects) < vis->textobjects.count)
+			textobj = vis->textobjects.data + arg->i - LENGTH(vis_textobjects);
+		if (textobj) {
+			Text *txt = vis_text(vis);
+			Win *win = vis->win;
+			int count = VIS_COUNT_DEFAULT(vis->action.count, 1);
+			for (Selection *sel = view_selections(vis_view(vis)); sel; sel = view_selections_next(sel)) {
+				size_t pos = view_cursors_pos(sel);
+				Filerange range = sel->anchored ? view_selections_get(sel) : text_range_new(pos, pos);
+				for (int i = 0; i < count; i++) {
+					Filerange r = text_range_empty();
+					if (textobj->txt)
+						r = textobj->txt(txt, pos);
+					else if (textobj->vis)
+						r = textobj->vis(vis, txt, pos);
+					else if (textobj->user)
+						r = textobj->user(vis, win, textobj->data, pos);
+					if (!text_range_valid(&r))
+						break;
+					if ((textobj->type & TEXTOBJECT_DELIMITED_OUTER) && r.start > 0 && r.end < text_size(txt)) {
+						r.start--;
+						r.end++;
+					}
+					range = (sel->anchored || i > 0) ? text_range_union(&range, &r) : r;
+					pos = textobj->type & TEXTOBJECT_EXTEND_BACKWARD ? range.start : range.end;
+				}
+				if (text_range_valid(&range))
+					view_selections_set_directed(sel, &range, false);
+			}
+			vis->action.count = VIS_COUNT_UNKNOWN;
+			vis_draw(vis);
+			return keys;
+		}
+	}
 	vis_textobject(vis, arg->i);
 	return keys;
 }
