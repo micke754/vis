@@ -99,6 +99,23 @@ Current mappings use cross-line motions:
 - `<vis-motion-to-left>`
 - `<vis-motion-till-left>`
 
+### Multi-cursor
+- Added Helix-style selection management mappings:
+  - `C` copy selection/cursor to next line
+  - `Alt-C` copy selection/cursor to previous line
+  - `,` keep primary selection
+  - `Alt-,` remove primary selection
+  - `&` align selections
+- Added `test/lua/keymap-helix-multicursor.lua`.
+- Covered current behavior for:
+  - `C`, `2C`, `Alt-C`
+  - `,`, `Alt-,`
+  - multi-cursor `d`
+  - multi-cursor `w d`
+  - multi-cursor line `x d`
+  - multi-cursor `w y p` / `w y P`
+  - multi-selection `*` registers all selections as regex alternatives.
+
 ### Search
 - `*` sets search pattern from current selection or word under cursor.
 - `*` does not immediately jump.
@@ -114,6 +131,7 @@ Focused Helix tests currently present:
 - `test/lua/keymap-helix-count.lua`
 - `test/lua/keymap-helix-find.lua`
 - `test/lua/keymap-helix-line.lua`
+- `test/lua/keymap-helix-multicursor.lua`
 - `test/lua/keymap-helix-operator.lua`
 - `test/lua/keymap-helix-paste.lua`
 - `test/lua/keymap-helix-profile.lua`
@@ -125,7 +143,7 @@ Run all:
 ```sh
 make -j2
 cd test/lua
-for t in keymap-helix-profile.lua keymap-helix-search.lua keymap-helix-paste.lua keymap-helix-find.lua keymap-helix-count.lua keymap-helix-select.lua keymap-helix-line.lua keymap-helix-regression.lua keymap-helix-operator.lua; do
+for t in keymap-helix-multicursor.lua keymap-helix-profile.lua keymap-helix-search.lua keymap-helix-paste.lua keymap-helix-find.lua keymap-helix-count.lua keymap-helix-select.lua keymap-helix-line.lua keymap-helix-regression.lua keymap-helix-operator.lua; do
   LD_LIBRARY_PATH=../../dependency/install/usr/lib ./test.sh $t || exit 1
 done
 ```
@@ -176,7 +194,12 @@ Desired future cleanup:
    - keep all focused tests green.
 2. Search/select-mode parity:
    - `n/N` in `SEL`, selected patterns with whitespace, multi-selection.
-3. Multi-cursor Helix behavior.
+3. Continue multi-cursor Helix behavior:
+   - `s` select regex inside selections,
+   - `S` split selections,
+   - `Alt-s` split on newlines,
+   - keep/remove selections matching regex,
+   - joined yank command if desired.
 4. Paste parity only if reopened:
    - current behavior is accepted/preferred despite differing from upstream Helix,
    - multi-selection behavior,
