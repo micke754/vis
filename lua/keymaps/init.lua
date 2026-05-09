@@ -1,5 +1,5 @@
 local M = {
-	profile = "vim",
+	profile = "helix",
 	valid = {
 		vim = true,
 		helix = true,
