@@ -1,5 +1,18 @@
 #include "vis-core.h"
 
+static Regex *prompt_helix_regex(Vis *vis, const char *pattern) {
+	Regex *regex = text_regex_new();
+	if (!regex)
+		return NULL;
+	int cflags = REG_EXTENDED|REG_NEWLINE|(REG_ICASE*vis->ignorecase);
+	if (text_regex_compile(regex, pattern, cflags) != 0) {
+		text_regex_free(regex);
+		vis_info_show(vis, "Invalid regex: `%s'", pattern);
+		return NULL;
+	}
+	return regex;
+}
+
 static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
 		return false;
@@ -7,15 +20,9 @@ static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	if (!win)
 		return false;
 	Text *txt = win->file->text;
-	Regex *regex = text_regex_new();
+	Regex *regex = prompt_helix_regex(vis, pattern);
 	if (!regex)
 		return true;
-	int cflags = REG_EXTENDED|REG_NEWLINE|(REG_ICASE*vis->ignorecase);
-	if (text_regex_compile(regex, pattern, cflags) != 0) {
-		text_regex_free(regex);
-		vis_info_show(vis, "Invalid regex: `%s'", pattern);
-		return true;
-	}
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
@@ -46,12 +53,51 @@ static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	return true;
 }
 
+static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return false;
+	Win *win = vis->win;
+	if (!win)
+		return false;
+	Text *txt = win->file->text;
+	Regex *regex = prompt_helix_regex(vis, pattern);
+	if (!regex)
+		return true;
+	FilerangeList ranges = {0};
+	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
+		Filerange selection = view_selections_get(sel);
+		if (!text_range_valid(&selection) || selection.start == selection.end) {
+			*da_push(vis, &ranges) = text_range_new(view_cursors_pos(sel), view_cursors_pos(sel));
+			continue;
+		}
+		size_t start = selection.start;
+		while (start < selection.end) {
+			RegexMatch match[1];
+			if (text_search_range_forward(txt, start, selection.end - start, regex, 1, match, 0) != 0 ||
+			    match[0].start == EPOS || match[0].end == EPOS || match[0].start >= selection.end)
+				break;
+			if (start < match[0].start)
+				*da_push(vis, &ranges) = text_range_new(start, match[0].start);
+			start = match[0].end > match[0].start ? match[0].end : text_char_next(txt, match[0].start);
+		}
+		if (start < selection.end)
+			*da_push(vis, &ranges) = text_range_new(start, selection.end);
+	}
+	text_regex_free(regex);
+	if (ranges.count)
+		view_selections_set_all(&win->view, ranges, true);
+	free(ranges.data);
+	return true;
+}
+
 bool vis_prompt_cmd(Vis *vis, const char *cmd) {
 	if (!cmd || !cmd[0] || !cmd[1])
 		return true;
 	switch (cmd[0]) {
 	case 's':
 		return prompt_helix_select_regex(vis, cmd+1);
+	case 'S':
+		return prompt_helix_split_regex(vis, cmd+1);
 	case '/':
 		return vis_motion(vis, VIS_MOVE_SEARCH_FORWARD, cmd+1);
 	case '?':
@@ -108,7 +154,7 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 		if (prompt->file == vis->command_file)
 			pattern = "^:";
 		else if (prompt->file == vis->search_file)
-			pattern = vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ? "^(/|\\?|s)" : "^(/|\\?)";
+			pattern = vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ? "^(/|\\?|s|S)" : "^(/|\\?)";
 		int cflags = REG_EXTENDED|REG_NEWLINE|(REG_ICASE*vis->ignorecase);
 		if (pattern && regex && text_regex_compile(regex, pattern, cflags) == 0) {
 			size_t end = text_line_end(txt, pos);

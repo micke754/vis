@@ -93,6 +93,7 @@ local normal = {
 	{ "N", "<vis-motion-search-repeat-backward>", "Previous search match" },
 	{ "*", "<vis-helix-search-word-forward>", "Set search pattern to selection" },
 	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
+	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },
 	{ "\"", "<vis-register>", "Select register" },
 
 	{ ";", "<vis-helix-collapse-selection>", "Collapse to cursor" },
@@ -140,6 +141,7 @@ local visual = {
 	{ "N", "<vis-motion-search-repeat-backward>", "Select previous search match" },
 	{ "*", "<vis-motion-search-word-forward>", "Select next word match" },
 	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
+	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },
 	{ ":", "<vis-prompt-show>", "Open command prompt" },
 	{ ">", "<vis-operator-shift-right>", "Indent selection" },
 	{ "<", "<vis-operator-shift-left>", "Unindent selection" },
@@ -202,6 +204,7 @@ local visual_line = {
 	{ "%", "<vis-helix-select-all>", "Select entire file" },
 	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
+	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },
 }
 
 local insert = {
