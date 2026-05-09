@@ -107,6 +107,8 @@ static Vis vis[1];
 	X(ka_helix_collapse,                  HELIX_COLLAPSE,                   0,                                        "vis-helix-collapse-selection",        "Collapse Helix selection") \
 	X(ka_helix_line_select,               HELIX_LINE_SELECT,                .b = true,                                "vis-helix-line-select",               "Select Helix line") \
 	X(ka_helix_line_select,               HELIX_LINE_SELECT_CURRENT,        .b = false,                               "vis-helix-line-select-current",       "Select current Helix line") \
+	X(ka_helix_rotate_selection,           HELIX_ROTATE_SELECTION_LEFT,      .i = -1,                                  "vis-helix-rotate-selection-left",     "Rotate primary selection backward") \
+	X(ka_helix_rotate_selection,           HELIX_ROTATE_SELECTION_RIGHT,     .i = +1,                                  "vis-helix-rotate-selection-right",    "Rotate primary selection forward") \
 	X(ka_helix_select_all,                 HELIX_SELECT_ALL,                 0,                                        "vis-helix-select-all",                "Select entire file") \
 	X(ka_helix_select_split_lines,         HELIX_SPLIT_LINES,                0,                                        "vis-helix-split-selection-lines",     "Split selections on newlines") \
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
@@ -919,6 +921,25 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	vis_info_show(vis, "Search pattern set: %s", buffer_content0(&message));
 	buffer_release(&pattern);
 	buffer_release(&message);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_helix_rotate_selection)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	View *view = vis_view(vis);
+	if (view->selection_count < 2)
+		return keys;
+	Selection *sel = view_selections_primary_get(view);
+	Selection *next = arg->i < 0 ? view_selections_prev(sel) : view_selections_next(sel);
+	if (!next) {
+		next = view_selections(view);
+		if (arg->i < 0)
+			for (Selection *s = next; s; s = view_selections_next(s))
+				next = s;
+	}
+	view_selections_primary_set(next);
 	return keys;
 }
 
