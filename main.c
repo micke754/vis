@@ -107,6 +107,7 @@ static Vis vis[1];
 	X(ka_helix_collapse,                  HELIX_COLLAPSE,                   0,                                        "vis-helix-collapse-selection",        "Collapse Helix selection") \
 	X(ka_helix_line_select,               HELIX_LINE_SELECT,                .b = true,                                "vis-helix-line-select",               "Select Helix line") \
 	X(ka_helix_line_select,               HELIX_LINE_SELECT_CURRENT,        .b = false,                               "vis-helix-line-select-current",       "Select current Helix line") \
+	X(ka_helix_select_all,                 HELIX_SELECT_ALL,                 0,                                        "vis-helix-select-all",                "Select entire file") \
 	X(ka_helix_select_split_lines,         HELIX_SPLIT_LINES,                0,                                        "vis-helix-split-selection-lines",     "Split selections on newlines") \
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
@@ -918,6 +919,18 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	vis_info_show(vis, "Search pattern set: %s", buffer_content0(&message));
 	buffer_release(&pattern);
 	buffer_release(&message);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_helix_select_all)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	View *view = vis_view(vis);
+	FilerangeList ranges = {0};
+	*da_push(vis, &ranges) = text_range_new(0, text_size(vis_text(vis)));
+	view_selections_set_all(view, ranges, true);
+	free(ranges.data);
 	return keys;
 }
 
