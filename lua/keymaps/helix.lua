@@ -28,6 +28,13 @@ local surround_delete = {
 	{ "`", "<vis-helix-surround-delete-backtick>", "Delete surrounding backticks" },
 }
 
+local surround_replace = {}
+for _, from in ipairs(surround_delete) do
+	for _, to in ipairs(surround) do
+		surround_replace[#surround_replace + 1] = { from[1] .. to[1], from[2] .. to[2], "Replace surrounding pair" }
+	end
+end
+
 local normal = {
 	{ "<Escape>", "<vis-mode-normal-escape>", "Return to normal mode" },
 	{ ":", "<vis-prompt-show>", "Open command prompt" },
@@ -300,6 +307,9 @@ return {
 	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ms", surround) and
 	       map_prefixed(manager, win, vis.modes.NORMAL, "md", surround_delete) and
 	       map_prefixed(manager, win, vis.modes.VISUAL, "md", surround_delete) and
-	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "md", surround_delete)
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "md", surround_delete) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "mr", surround_replace) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "mr", surround_replace) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "mr", surround_replace)
 	end,
 }
