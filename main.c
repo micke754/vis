@@ -82,6 +82,7 @@ static Vis vis[1];
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_FORWARD,     .i = VIS_MOVE_SEARCH_REPEAT_FORWARD,      "vis-motion-search-repeat-forward",    "Move cursor to next match in forward direction") \
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_REVERSE,     .i = VIS_MOVE_SEARCH_REPEAT_REVERSE,      "vis-motion-search-repeat-reverse",    "Move cursor to next match in opposite direction") \
 	X(ka_helix_search_word,               HELIX_SEARCH_WORD_FORWARD,        .i = +1,                                 "vis-helix-search-word-forward",       "Set search pattern to word under cursor") \
+	X(ka_helix_yank_joined,               HELIX_YANK_JOINED,                0,                                        "vis-helix-yank-joined",              "Join and yank selections") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_BACKWARD,      .i = VIS_MOVE_SEARCH_WORD_BACKWARD,       "vis-motion-search-word-backward",     "Move cursor to previous occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_FORWARD,       .i = VIS_MOVE_SEARCH_WORD_FORWARD,        "vis-motion-search-word-forward",      "Move cursor to next occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SENTENCE_NEXT,             .i = VIS_MOVE_SENTENCE_NEXT,              "vis-motion-sentence-next",            "Move cursor sentence forward") \
@@ -867,6 +868,35 @@ static KEY_ACTION_FN(ka_replace)
 	if (vis->mode->id == VIS_MODE_OPERATOR_PENDING)
 		vis_motion(vis, VIS_MOVE_CHAR_NEXT);
 	return next;
+}
+
+static KEY_ACTION_FN(ka_helix_yank_joined)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	Text *txt = vis_text(vis);
+	View *view = vis_view(vis);
+	Buffer joined = {0};
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		Filerange range = view_selections_get(sel);
+		if (!text_range_valid(&range) || range.start == range.end)
+			range = text_range_new(view_cursors_pos(sel), text_char_next(txt, view_cursors_pos(sel)));
+		if (!text_range_valid(&range))
+			continue;
+		if (buffer_length0(&joined))
+			buffer_append(&joined, "\n", 1);
+		size_t len = text_range_size(&range);
+		if (len != SIZE_MAX && buffer_grow(&joined, len))
+			joined.len += text_bytes_get(txt, range.start, len, joined.data + joined.len);
+	}
+	if (buffer_length0(&joined)) {
+		register_put(vis, &vis->registers[VIS_REG_DEFAULT], joined.data, joined.len);
+		register_put(vis, &vis->registers[VIS_REG_ZERO], joined.data, joined.len);
+		vis_info_show(vis, "Joined and yanked selections");
+	}
+	buffer_release(&joined);
+	vis->helix_select = false;
+	return keys;
 }
 
 static bool helix_search_escape_append(Buffer *buf, const char *text) {
