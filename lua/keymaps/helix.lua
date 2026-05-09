@@ -13,6 +13,21 @@ local surround = {
 	{ "`", "<vis-helix-surround-add-backtick>", "Surround selections with backticks" },
 }
 
+
+local surround_delete = {
+	{ "(", "<vis-helix-surround-delete-paren>", "Delete surrounding ()" },
+	{ ")", "<vis-helix-surround-delete-paren>", "Delete surrounding ()" },
+	{ "[", "<vis-helix-surround-delete-bracket>", "Delete surrounding []" },
+	{ "]", "<vis-helix-surround-delete-bracket>", "Delete surrounding []" },
+	{ "{", "<vis-helix-surround-delete-brace>", "Delete surrounding {}" },
+	{ "}", "<vis-helix-surround-delete-brace>", "Delete surrounding {}" },
+	{ "<", "<vis-helix-surround-delete-angle>", "Delete surrounding <>" },
+	{ ">", "<vis-helix-surround-delete-angle>", "Delete surrounding <>" },
+	{ '"', "<vis-helix-surround-delete-quote>", "Delete surrounding quotes" },
+	{ "'", "<vis-helix-surround-delete-single-quote>", "Delete surrounding single quotes" },
+	{ "`", "<vis-helix-surround-delete-backtick>", "Delete surrounding backticks" },
+}
+
 local normal = {
 	{ "<Escape>", "<vis-mode-normal-escape>", "Return to normal mode" },
 	{ ":", "<vis-prompt-show>", "Open command prompt" },
@@ -282,6 +297,9 @@ return {
 		       map_all(manager, win, vis.modes.INSERT, insert) and
 	       map_prefixed(manager, win, vis.modes.NORMAL, "ms", surround) and
 	       map_prefixed(manager, win, vis.modes.VISUAL, "ms", surround) and
-	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ms", surround)
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ms", surround) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "md", surround_delete) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "md", surround_delete) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "md", surround_delete)
 	end,
 }

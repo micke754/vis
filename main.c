@@ -89,6 +89,13 @@ static Vis vis[1];
 	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_QUOTE,         .s = "\"\"",                              "vis-helix-surround-add-quote",       "Surround selections with quotes") \
 	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_SINGLE_QUOTE,  .s = "''",                                "vis-helix-surround-add-single-quote", "Surround selections with single quotes") \
 	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_BACKTICK,      .s = "``",                                "vis-helix-surround-add-backtick",    "Surround selections with backticks") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_PAREN,      .s = "(",                                 "vis-helix-surround-delete-paren",    "Delete surrounding ()") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_BRACKET,    .s = "[",                                 "vis-helix-surround-delete-bracket",  "Delete surrounding []") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_BRACE,      .s = "{",                                 "vis-helix-surround-delete-brace",    "Delete surrounding {}") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_ANGLE,      .s = "<",                                 "vis-helix-surround-delete-angle",    "Delete surrounding <>") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_QUOTE,      .s = "\"",                                "vis-helix-surround-delete-quote",    "Delete surrounding quotes") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_SINGLE_QUOTE, .s = "'",                                "vis-helix-surround-delete-single-quote", "Delete surrounding single quotes") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_BACKTICK,   .s = "`",                                 "vis-helix-surround-delete-backtick", "Delete surrounding backticks") \
 	X(ka_helix_yank_joined,               HELIX_YANK_JOINED,                0,                                        "vis-helix-yank-joined",              "Join and yank selections") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_BACKWARD,      .i = VIS_MOVE_SEARCH_WORD_BACKWARD,       "vis-motion-search-word-backward",     "Move cursor to previous occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_FORWARD,       .i = VIS_MOVE_SEARCH_WORD_FORWARD,        "vis-motion-search-word-forward",      "Move cursor to next occurrence of the word under cursor") \
@@ -881,6 +888,31 @@ static KEY_ACTION_FN(ka_replace)
 	return next;
 }
 
+static Filerange helix_surround_inner(Text *txt, size_t pos, char surround)
+{
+	switch (surround) {
+	case '(':
+	case ')':
+		return text_object_parenthesis(txt, pos);
+	case '[':
+	case ']':
+		return text_object_square_bracket(txt, pos);
+	case '{':
+	case '}':
+		return text_object_curly_bracket(txt, pos);
+	case '<':
+	case '>':
+		return text_object_angle_bracket(txt, pos);
+	case '"':
+		return text_object_quote(txt, pos);
+	case '\'':
+		return text_object_single_quote(txt, pos);
+	case '`':
+		return text_object_backtick(txt, pos);
+	}
+	return text_range_empty();
+}
+
 static KEY_ACTION_FN(ka_helix_surround_add)
 {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX || !arg->s || strlen(arg->s) < 2)
@@ -899,6 +931,29 @@ static KEY_ACTION_FN(ka_helix_surround_add)
 			continue;
 		text_insert(vis, txt, range.end, close, sizeof close);
 		text_insert(vis, txt, range.start, open, sizeof open);
+	}
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_helix_surround_delete)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX || !arg->s || !arg->s[0])
+		return keys;
+	Text *txt = vis_text(vis);
+	View *view = vis_view(vis);
+	Selection *sel = view_selections(view);
+	for (Selection *s = sel; s; s = view_selections_next(s))
+		sel = s;
+	for (; sel; sel = view_selections_prev(sel)) {
+		Filerange selection = view_selections_get(sel);
+		size_t pos = text_range_valid(&selection) ? selection.start : view_cursors_pos(sel);
+		Filerange inner = helix_surround_inner(txt, pos, arg->s[0]);
+		if (!text_range_valid(&inner) || inner.start == 0 || inner.end >= text_size(txt))
+			continue;
+		Filerange close = text_range_new(inner.end, text_char_next(txt, inner.end));
+		Filerange open = text_range_new(text_char_prev(txt, inner.start), inner.start);
+		text_delete_range(txt, &close);
+		text_delete_range(txt, &open);
 	}
 	return keys;
 }
