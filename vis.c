@@ -873,6 +873,31 @@ static bool helix_search_repeat(Vis *vis, Text *txt, View *view, Selection *sel,
 		register_get(vis, &vis->registers[VIS_REG_SEARCH], &size);
 
 	size_t pos = view_cursors_pos(sel);
+	if (vis->helix_select) {
+		for (int i = 0; i < count; i++) {
+			size_t oldpos = pos;
+			if (movement->vis)
+				pos = movement->vis(vis, txt, pos);
+			if (pos == EPOS || pos == oldpos)
+				break;
+		}
+		Filerange match = helix_search_match_range(vis, txt, pos);
+		if (!text_range_valid(&match) && size) {
+			match.start = pos;
+			match.end = pos;
+			while (size-- && match.end < text_size(txt))
+				match.end = text_char_next(txt, match.end);
+		}
+		if (text_range_valid(&match) && match.start < match.end) {
+			Selection *newsel = view_selections_new_force(view, match.start);
+			if (newsel) {
+				view_selections_set_directed(newsel, &match, false);
+				view_selections_primary_set(newsel);
+			}
+		}
+		return true;
+	}
+
 	view_selection_clear(sel);
 	view_cursors_to(sel, pos);
 	for (int i = 0; i < count; i++) {
