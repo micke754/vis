@@ -1,3 +1,18 @@
+
+local surround = {
+	{ "(", "<vis-helix-surround-add-paren>", "Surround selections with ()" },
+	{ ")", "<vis-helix-surround-add-paren>", "Surround selections with ()" },
+	{ "[", "<vis-helix-surround-add-bracket>", "Surround selections with []" },
+	{ "]", "<vis-helix-surround-add-bracket>", "Surround selections with []" },
+	{ "{", "<vis-helix-surround-add-brace>", "Surround selections with {}" },
+	{ "}", "<vis-helix-surround-add-brace>", "Surround selections with {}" },
+	{ "<", "<vis-helix-surround-add-angle>", "Surround selections with <>" },
+	{ ">", "<vis-helix-surround-add-angle>", "Surround selections with <>" },
+	{ '"', "<vis-helix-surround-add-quote>", "Surround selections with quotes" },
+	{ "'", "<vis-helix-surround-add-single-quote>", "Surround selections with single quotes" },
+	{ "`", "<vis-helix-surround-add-backtick>", "Surround selections with backticks" },
+}
+
 local normal = {
 	{ "<Escape>", "<vis-mode-normal-escape>", "Return to normal mode" },
 	{ ":", "<vis-prompt-show>", "Open command prompt" },
@@ -235,6 +250,16 @@ local insert = {
 	{ "<PageDown>", "<vis-window-page-down>", "Page down" },
 }
 
+local function map_prefixed(manager, win, mode, prefix, mappings)
+	for _, mapping in ipairs(mappings) do
+		local key, rhs, help = prefix .. mapping[1], mapping[2], mapping[3]
+		if not manager.bind(win, mode, key, rhs, help) then
+			return false
+		end
+	end
+	return true
+end
+
 local function map_all(manager, win, mode, mappings)
 	for _, mapping in ipairs(mappings) do
 		local key, rhs, help = mapping[1], mapping[2], mapping[3]
@@ -254,6 +279,9 @@ return {
 		return map_all(manager, win, vis.modes.NORMAL, normal) and
 		       map_all(manager, win, vis.modes.VISUAL, visual) and
 		       map_all(manager, win, vis.modes.VISUAL_LINE, visual_line) and
-		       map_all(manager, win, vis.modes.INSERT, insert)
+		       map_all(manager, win, vis.modes.INSERT, insert) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "ms", surround) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "ms", surround) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ms", surround)
 	end,
 }
