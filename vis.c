@@ -978,6 +978,9 @@ static bool helix_put_context(Vis *vis, Text *txt, Selection *sel, const Action 
 				context->pos = text_char_prev(txt, selection.end);
 		}
 	}
+	size_t slots = vis_register_count(vis, context->reg);
+	if (slots > 0 && context->reg_slot >= slots)
+		context->reg_slot = slots - 1;
 	context->range = text_range_empty();
 	return true;
 }
