@@ -91,13 +91,25 @@ static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
 }
 
 bool vis_prompt_cmd(Vis *vis, const char *cmd) {
-	if (!cmd || !cmd[0] || !cmd[1])
+	if (!cmd)
+		return true;
+	if (vis->helix_prompt != HELIX_PROMPT_NONE) {
+		enum HelixPrompt prompt = vis->helix_prompt;
+		vis->helix_prompt = HELIX_PROMPT_NONE;
+		if (!cmd[0])
+			return true;
+		switch (prompt) {
+		case HELIX_PROMPT_SELECT_REGEX:
+			return prompt_helix_select_regex(vis, cmd);
+		case HELIX_PROMPT_SPLIT_REGEX:
+			return prompt_helix_split_regex(vis, cmd);
+		case HELIX_PROMPT_NONE:
+			break;
+		}
+	}
+	if (!cmd[0] || !cmd[1])
 		return true;
 	switch (cmd[0]) {
-	case 's':
-		return prompt_helix_select_regex(vis, cmd+1);
-	case 'S':
-		return prompt_helix_split_regex(vis, cmd+1);
 	case '/':
 		return vis_motion(vis, VIS_MOVE_SEARCH_FORWARD, cmd+1);
 	case '?':
@@ -154,7 +166,7 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 		if (prompt->file == vis->command_file)
 			pattern = "^:";
 		else if (prompt->file == vis->search_file)
-			pattern = vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX ? "^(/|\\?|s|S)" : "^(/|\\?)";
+			pattern = vis->helix_prompt != HELIX_PROMPT_NONE ? "^" : "^(/|\\?)";
 		int cflags = REG_EXTENDED|REG_NEWLINE|(REG_ICASE*vis->ignorecase);
 		if (pattern && regex && text_regex_compile(regex, pattern, cflags) == 0) {
 			size_t end = text_line_end(txt, pos);
@@ -200,6 +212,7 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 			text_appendf(vis, txt, "%s\n", cmd);
 		}
 	} else {
+		vis->helix_prompt = HELIX_PROMPT_NONE;
 		vis->win = prompt;
 		vis->mode = &vis_modes[VIS_MODE_INSERT];
 	}
@@ -213,6 +226,7 @@ static const char *prompt_esc(Vis *vis, const char *keys, const Arg *arg) {
 		view_selections_dispose_all(&prompt->view);
 	} else {
 		prompt_restore(prompt);
+		prompt->vis->helix_prompt = HELIX_PROMPT_NONE;
 		prompt_hide(prompt);
 	}
 	return keys;

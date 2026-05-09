@@ -42,6 +42,12 @@ enum PromptState {
 	PROMPTSTATE_COMMAND,   /* used to move cursor to the bottom of the terminal before running prompt command */
 };
 
+enum HelixPrompt {
+	HELIX_PROMPT_NONE,
+	HELIX_PROMPT_SELECT_REGEX,
+	HELIX_PROMPT_SPLIT_REGEX,
+};
+
 typedef struct {
 	Buffer     *data;
 	VisDACount  count;
@@ -200,6 +206,7 @@ struct Vis {
 	int search_direction;                /* used for `n` and `N` */
 	enum TextLoadMethod load_method;     /* how existing files should be loaded */
 	enum PromptState prompt_state;       /* needed for determining primary cursor's position */
+	enum HelixPrompt helix_prompt;       /* pending Helix prompt command */
 	bool autoindent;                     /* whether indentation should be copied from previous line on newline */
 	bool change_colors;                  /* whether to adjust 256 color palette for true colors */
 	bool ignorecase;                     /* whether to ignore case when searching */

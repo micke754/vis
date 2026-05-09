@@ -36,7 +36,7 @@ local normal = {
 	{ "<C-o>", "<vis-jumplist-prev>", "Jump backward" },
 	{ "<C-i>", "<vis-jumplist-next>", "Jump forward" },
 	{ "<C-s>", "<vis-jumplist-save>", "Save jump position" },
-	{ "<C-w>s", "<vis-helix-select-regex-prompt>plit<Enter>", "Horizontal split" },
+	{ "<C-w>s", "<vis-prompt-show>split<Enter>", "Horizontal split" },
 	{ "<C-w>v", "<vis-prompt-show>vsplit<Enter>", "Vertical split" },
 	{ "<C-w>h", "<vis-window-prev>", "Focus previous window" },
 	{ "<C-w>j", "<vis-window-next>", "Focus next window" },
