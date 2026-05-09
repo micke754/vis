@@ -115,6 +115,10 @@ Current mappings use cross-line motions:
   - multi-cursor line `x d`
   - multi-cursor `w y p` / `w y P`
   - multi-selection `*` registers all selections as regex alternatives.
+  - select-mode `n/N` extends by adding new match selections.
+  - `s` selects regex matches inside selections.
+  - `S` splits selections by regex matches.
+  - `Y` joins and yanks selections with newline separators.
 
 ### Search
 - `*` sets search pattern from current selection or word under cursor.
@@ -195,11 +199,9 @@ Desired future cleanup:
 2. Search/select-mode parity:
    - `n/N` in `SEL`, selected patterns with whitespace, multi-selection.
 3. Continue multi-cursor Helix behavior:
-   - `s` select regex inside selections,
-   - `S` split selections,
-   - `Alt-s` split on newlines,
-   - keep/remove selections matching regex,
-   - joined yank command if desired.
+   - keep/remove selections matching regex (`K` / `Alt-K`),
+   - selection-content rotation (`Alt-(`/`Alt-)`) if desired,
+   - deeper paste parity for mismatched register slot counts.
 4. Paste parity only if reopened:
    - current behavior is accepted/preferred despite differing from upstream Helix,
    - multi-selection behavior,
