@@ -154,6 +154,7 @@ local normal = {
 	{ ")", "<vis-helix-rotate-selection-right>", "Rotate primary selection forward" },
 	{ "%", "<vis-helix-select-all>", "Select entire file" },
 	{ "mm", "<vis-helix-match-bracket>", "Jump to matching bracket" },
+	{ "gw", "<vis-helix-goto-word>", "Show jump labels for visible words" },
 	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 	{ "d", "<vis-operator-delete>", "Delete selection" },
 	{ "c", "<vis-operator-change>", "Change selection" },
@@ -245,6 +246,7 @@ local visual = {
 	{ ")", "<vis-helix-rotate-selection-right>", "Rotate primary selection forward" },
 	{ "%", "<vis-helix-select-all>", "Select entire file" },
 	{ "mm", "<vis-helix-match-bracket>", "Jump to matching bracket" },
+	{ "gw", "<vis-helix-goto-word>", "Show jump labels for visible words" },
 	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 }
 
@@ -280,6 +282,7 @@ local visual_line = {
 	{ ")", "<vis-helix-rotate-selection-right>", "Rotate primary selection forward" },
 	{ "%", "<vis-helix-select-all>", "Select entire file" },
 	{ "mm", "<vis-helix-match-bracket>", "Jump to matching bracket" },
+	{ "gw", "<vis-helix-goto-word>", "Show jump labels for visible words" },
 	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
 	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
 	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },

@@ -321,6 +321,30 @@ void vis_window_draw(Win *win) {
 		window_draw_selections(win);
 	window_draw_eof(win);
 
+	if (win->view.jump_labels_count > 0) {
+		for (int i = 0; i < win->view.jump_labels_count; i++) {
+			JumpLabel *label = &win->view.jump_labels[i];
+			Line *line; int col;
+			if (!view_coord_get(&win->view, label->pos, &line, NULL, &col))
+				continue;
+			if (col >= 0 && col < line->width) {
+				line->cells[col].data[0] = label->text[0];
+				line->cells[col].data[1] = '\0';
+				line->cells[col].len = 1;
+				line->cells[col].width = 1;
+				ui_window_style_set(&win->vis->ui, win->id, &line->cells[col], UI_STYLE_JUMP_LABEL, false);
+			}
+			int nc = col + 1;
+			if (nc < line->width) {
+				line->cells[nc].data[0] = label->text[1];
+				line->cells[nc].data[1] = '\0';
+				line->cells[nc].len = 1;
+				line->cells[nc].width = 1;
+				ui_window_style_set(&win->vis->ui, win->id, &line->cells[nc], UI_STYLE_JUMP_LABEL, false);
+			}
+		}
+	}
+
 	if (win->options & UI_OPTION_STATUSBAR)
 		vis_event_emit(vis, VIS_EVENT_WIN_STATUS, win);
 }
@@ -1069,6 +1093,57 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 	KeyBinding *binding = NULL;
 
 	while (cur && *cur) {
+		if (vis->jump_labels_active) {
+			Win *win = vis->win;
+			if (win && win->view.jump_labels_count > 0) {
+				char ch = *cur;
+				if (ch == 27 || ch == '\r' || ch == '\n' || ch == ' ') {
+					view_jump_labels_clear(&win->view);
+					vis->jump_labels_active = false;
+					vis->jump_label_input_count = 0;
+					vis_redraw(vis);
+					buffer_remove(buf, start - buf->data, 1);
+					return;
+				}
+				int matched = 0;
+				for (int j = 0; j < win->view.jump_labels_count; j++) {
+					if (vis->jump_label_input_count == 0) {
+						if (win->view.jump_labels[j].text[0] == ch) {
+							vis->jump_label_input_count = 1;
+							vis->jump_label_first = ch;
+							matched = 1;
+							break;
+						}
+					} else {
+						if (win->view.jump_labels[j].text[0] == vis->jump_label_first &&
+						    win->view.jump_labels[j].text[1] == ch) {
+							vis->jump_labels_active = false;
+							vis->jump_label_input_count = 0;
+							size_t pos = win->view.jump_labels[j].pos;
+							view_jump_labels_clear(&win->view);
+							for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
+								view_selection_clear(sel);
+								view_cursors_to(sel, pos);
+							}
+							vis_redraw(vis);
+							buffer_remove(buf, start - buf->data, 2);
+							return;
+						}
+					}
+				}
+				if (!matched) {
+					view_jump_labels_clear(&win->view);
+					vis->jump_labels_active = false;
+					vis->jump_label_input_count = 0;
+					vis_redraw(vis);
+					buffer_remove(buf, start - buf->data, 1);
+					return;
+				}
+			}
+			buffer_remove(buf, start - buf->data, 1);
+			return;
+		}
+
 
 		if (!(end = (char*)vis_keys_next(vis, cur))) {
 			buffer_remove(buf, keys - buf->data, strlen(keys));

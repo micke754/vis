@@ -209,6 +209,9 @@ struct Vis {
 	enum TextLoadMethod load_method;     /* how existing files should be loaded */
 	enum PromptState prompt_state;       /* needed for determining primary cursor's position */
 	enum HelixPrompt helix_prompt;       /* pending Helix prompt command */
+	bool jump_labels_active;             /* waiting for jump label input */
+	int jump_label_input_count;          /* characters received so far */
+	char jump_label_first;                 /* first char of pending label input */
 	bool autoindent;                     /* whether indentation should be copied from previous line on newline */
 	bool change_colors;                  /* whether to adjust 256 color palette for true colors */
 	bool ignorecase;                     /* whether to ignore case when searching */

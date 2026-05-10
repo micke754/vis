@@ -989,3 +989,59 @@ found:
 	vis_draw(vis);
 	return keys;
 }
+
+static KEY_ACTION_FN(ka_helix_goto_word)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	Text *txt = vis_text(vis);
+	Win *win = vis->win;
+	if (!txt || !win)
+		return keys;
+	Filerange vp = VIEW_VIEWPORT_GET(win->view);
+	if (!text_range_valid(&vp))
+		return keys;
+
+	const char *alphabet = "abcdefghijklmnopqrstuvwxyz";
+	int alen = strlen(alphabet);
+	int limit = alen * alen;
+
+	/* Collect visible word starts */
+	JumpLabel *labels = NULL;
+	int count = 0;
+	size_t pos = vp.start;
+	while (pos < vp.end && count < limit) {
+		Filerange word = text_object_word(txt, pos);
+		if (!text_range_valid(&word) || word.start == word.end) {
+			pos = text_char_next(txt, pos);
+			continue;
+		}
+		size_t size = text_range_size(&word);
+		if (size < 2) {
+			pos = word.end;
+			continue;
+		}
+		/* Allocate/grow labels array */
+		labels = realloc(labels, (count + 1) * sizeof(JumpLabel));
+		if (!labels)
+			break;
+		labels[count].pos = word.start;
+		int outer = count / alen;
+		int inner = count % alen;
+		labels[count].text[0] = alphabet[outer];
+		labels[count].text[1] = alphabet[inner];
+		labels[count].text[2] = '\0';
+		count++;
+		pos = word.end;
+	}
+	if (count == 0) {
+		free(labels);
+		return keys;
+	}
+	view_jump_labels_set(&win->view, labels, count);
+	free(labels);
+	vis->jump_labels_active = true;
+	vis->jump_label_input_count = 0;
+	vis_redraw(vis);
+	return keys;
+}

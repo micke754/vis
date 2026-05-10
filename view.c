@@ -1385,3 +1385,22 @@ void win_style(Win *win, enum UiStyle style, size_t start, size_t end, bool keep
 		col = 0;
 	} while (pos <= end && (line = line->next));
 }
+
+void view_jump_labels_set(View *view, JumpLabel *labels, int count) {
+	free(view->jump_labels);
+	view->jump_labels = NULL;
+	view->jump_labels_count = 0;
+	if (!labels || count <= 0)
+		return;
+	view->jump_labels = malloc(count * sizeof(JumpLabel));
+	if (!view->jump_labels)
+		return;
+	memcpy(view->jump_labels, labels, count * sizeof(JumpLabel));
+	view->jump_labels_count = count;
+}
+
+void view_jump_labels_clear(View *view) {
+	free(view->jump_labels);
+	view->jump_labels = NULL;
+	view->jump_labels_count = 0;
+}

@@ -24,6 +24,11 @@ typedef struct {
 	VisDACount       capacity;
 } SelectionRegionList;
 
+typedef struct {
+	size_t pos;
+	char text[3];
+} JumpLabel;
+
 typedef struct Line Line;
 struct Line {               /* a line on the screen, *not* in the file */
 	Line *prev, *next;  /* pointer to neighbouring screen lines */
@@ -77,6 +82,8 @@ typedef struct View {
 	int wrapcolumn; /* wrap lines at minimum of window width and wrapcolumn (if != 0) */
 	int wrapcol;    /* used while drawing view content, column where word wrap might happen */
 	bool prevch_breakat; /* used while drawing view content, previous char is part of breakat */
+	JumpLabel *jump_labels;
+	int jump_labels_count;
 } View;
 
 /**
@@ -93,6 +100,9 @@ VIS_INTERNAL void view_reload(View*, Text*);
  */
 /** Get the currently displayed text range. */
 #define VIEW_VIEWPORT_GET(v) (Filerange){ .start = v.start, .end = v.end }
+VIS_INTERNAL void view_jump_labels_set(View *view, JumpLabel *labels, int count);
+VIS_INTERNAL void view_jump_labels_clear(View *view);
+
 /**
  * Get window coordinate of text position.
  * @param view The view to manipulate.
