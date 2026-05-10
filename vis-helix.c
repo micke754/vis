@@ -404,17 +404,7 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 	}
 
 	if (prev) {
-		/* Preserve original end position for count > 1:
-		   selection extends from destination word back to where we started. */
-		size_t original_end = cursor;
 		Filerange current = helix_word_at(txt, cursor, longword);
-		/* If cursor is inside a word, extend end past it (symmetry with w
-		   which extends past the destination word). If on whitespace,
-		   include that whitespace in the end. */
-		if (text_range_valid(&current) && current.start < cursor && cursor < current.end)
-			original_end = current.end;
-		else
-			original_end = cursor;
 		/* Find the word we're going back to.
 		   If cursor is inside a word or on whitespace, skip back past it
 		   to the previous word. */
@@ -433,7 +423,10 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 		if (!text_range_valid(&word))
 			return false;
 		start = word.start;
-		end = original_end;
+		end = word.end;
+		/* Include trailing whitespace (symmetry with w forward motion) */
+		if (!end_motion)
+			end = helix_word_include_space(txt, end);
 	} else {
 		Filerange at = helix_word_at(txt, cursor, longword);
 		if (!select_mode && text_range_valid(&at) && cursor == text_char_prev(txt, at.end))
