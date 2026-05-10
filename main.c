@@ -131,6 +131,7 @@ static Vis vis[1];
 	X(ka_helix_regex_prompt,              HELIX_KEEP_REGEX_PROMPT,          .i = HELIX_PROMPT_KEEP_REGEX,              "vis-helix-keep-regex-prompt",         "Keep selections matching regex") \
 	X(ka_helix_regex_prompt,              HELIX_REMOVE_REGEX_PROMPT,        .i = HELIX_PROMPT_REMOVE_REGEX,            "vis-helix-remove-regex-prompt",       "Remove selections matching regex") \
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
+	X(ka_helix_match_bracket,            HELIX_MATCH_BRACKET,              0,                                        "vis-helix-match-bracket",             "Jump to matching bracket") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \

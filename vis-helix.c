@@ -943,3 +943,47 @@ static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
 	return true;
 }
 
+
+static KEY_ACTION_FN(ka_helix_match_bracket)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	Text *txt = vis_text(vis);
+	View *view = vis_view(vis);
+	Selection *sel = view_selections_primary_get(view);
+	if (!sel)
+		return keys;
+	size_t pos = view_cursors_pos(sel);
+	size_t match = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", NULL);
+	if (match == pos || match == EPOS) {
+		Iterator it = text_iterator_get(txt, pos);
+		char ch;
+		while (text_iterator_byte_get(&it, &ch)) {
+			switch (ch) {
+			case '(':
+			case ')':
+			case '{':
+			case '}':
+			case '[':
+			case ']':
+			case '<':
+			case '>':
+			case '"':
+			case '\'':
+			case '`':
+				match = text_bracket_match_symbol(txt, it.pos, "(){}[]<>'\"`", NULL);
+				if (match != it.pos && match != EPOS)
+					goto found;
+				break;
+			}
+			text_iterator_byte_prev(&it, NULL);
+		}
+	}
+found:
+	if (match == pos || match == EPOS)
+		return keys;
+	Filerange range = text_range_new(pos, text_char_next(txt, match));
+	view_selections_set_directed(sel, &range, match < pos);
+	vis_draw(vis);
+	return keys;
+}
