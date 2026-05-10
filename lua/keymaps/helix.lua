@@ -335,6 +335,7 @@ end
 return {
 	apply = function(manager, win)
 		vis:command("set ignorecase on")
+		win:style_define(win.STYLE_JUMP_LABEL, "fore:black,back:yellow,bold")
 		if not manager.shadow_defaults(win) then
 			return false
 		end

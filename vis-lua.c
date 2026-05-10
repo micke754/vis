@@ -3334,6 +3334,7 @@ static void vis_lua_init(Vis *vis)
 		{ UI_STYLE_INFO,              "STYLE_INFO"              },
 		{ UI_STYLE_EOF,               "STYLE_EOF"               },
 		{ UI_STYLE_WHITESPACE,        "STYLE_WHITESPACE"        },
+		{ UI_STYLE_JUMP_LABEL,       "STYLE_JUMP_LABEL"        },
 	};
 
 	for (size_t i = 0; i < LENGTH(styles); i++) {
