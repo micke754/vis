@@ -329,9 +329,9 @@ void vis_window_draw(Win *win) {
 			if (!view_coord_get(&win->view, label->pos, &jline, NULL, &jcol))
 				continue;
 			/* Skip continuation cells (multi-column chars) */
-			while (jcol < jline->width && jline->cells[jcol].len == 0)
+			while (jcol < jline->width && jcol < win->view.width && jline->cells[jcol].len == 0)
 				jcol++;
-			if (jcol >= jline->width)
+			if (jcol >= jline->width || jcol >= win->view.width)
 				continue;
 			memset(jline->cells[jcol].data, 0, sizeof(jline->cells[jcol].data));
 			jline->cells[jcol].data[0] = label->text[0];
@@ -339,9 +339,9 @@ void vis_window_draw(Win *win) {
 			jline->cells[jcol].width = 1;
 			ui_window_style_set(&win->vis->ui, win->id, &jline->cells[jcol], UI_STYLE_JUMP_LABEL, false);
 			int jnc = jcol + 1;
-			while (jnc < jline->width && jline->cells[jnc].len == 0)
+			while (jnc < jline->width && jnc < win->view.width && jline->cells[jnc].len == 0)
 				jnc++;
-			if (jnc < jline->width) {
+			if (jnc < jline->width && jnc < win->view.width) {
 				memset(jline->cells[jnc].data, 0, sizeof(jline->cells[jnc].data));
 				jline->cells[jnc].data[0] = label->text[1];
 				jline->cells[jnc].len = 1;
