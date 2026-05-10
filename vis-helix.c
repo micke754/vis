@@ -982,7 +982,9 @@ static KEY_ACTION_FN(ka_helix_match_bracket)
 found:
 	if (match == pos || match == EPOS)
 		return keys;
-	Filerange range = text_range_new(pos, text_char_next(txt, match));
+	size_t range_start = pos < match ? pos : match;
+	size_t range_end = text_char_next(txt, pos < match ? match : pos);
+	Filerange range = text_range_new(range_start, range_end);
 	view_selections_set_directed(sel, &range, match < pos);
 	vis_draw(vis);
 	return keys;

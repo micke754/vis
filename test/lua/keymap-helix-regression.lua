@@ -77,6 +77,18 @@ describe("helix keymap regressions", function()
 		reset("(word)\n", 1)
 		vis:feedkeys("mm")
 		assert.are.same(5, win.selection.pos)
+		end)
+
+	it("mm jumps from closing to opening bracket", function()
+		reset("(word)\n", 5)
+		vis:feedkeys("mm")
+		assert.are.same(0, win.selection.pos)
 	end)
 
+	it("mm jumps from opening to closing bracket", function()
+		reset("(word)\n", 0)
+		vis:feedkeys("mm")
+		assert.are.same(5, win.selection.pos)
+	end)
 end)
+
