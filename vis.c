@@ -1129,9 +1129,15 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 							size_t pos = win->view.jump_labels[j].pos;
 							view_jump_labels_clear(&win->view);
 							vis_window_invalidate(win);
+							Text *txt = vis_text(vis);
+							Filerange word = text_object_word(txt, pos);
 							for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
-								view_selection_clear(sel);
-								view_cursors_to(sel, pos);
+								if (text_range_valid(&word)) {
+									view_selections_set_directed(sel, &word, false);
+								} else {
+									view_selection_clear(sel);
+									view_cursors_to(sel, pos);
+								}
 							}
 							vis_draw(vis);
 							buffer_remove(buf, start - buf->data, 2);
