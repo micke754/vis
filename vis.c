@@ -23,6 +23,7 @@
 #include "vis-registers.c"
 #include "vis-subprocess.c"
 #include "vis-text-objects.c"
+#include "vis-helix.c"
 
 /** window / file handling */
 
