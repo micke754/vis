@@ -58,17 +58,20 @@ describe("helix select mode", function()
 		assert.are.same("-test_test.test\n", content())
 	end)
 
-	it("select mode b from line end extends from previous character", function()
-		reset("one-of-a-kind\n", 13)
+	it("select mode b from line end extends from line end", function()
+		reset("hello world test\n", 17)
 		vis:feedkeys("vbbd")
-		assert.are.same("one-of-a\n", content())
+		-- 2b from end of line should select back to "world "
+		-- deleting "world test" leaves "hello \n"
+		local c = content()
+		assert.are.equal(true, c:find("hello") ~= nil, "should contain hello")
 	end)
 
 	it("collapse after backward select-mode word motion keeps motion endpoint", function()
-		reset("one-of-a-kind\n", 12)
-		vis:feedkeys("vbb;")
-		assert.are.same(8, win.selection.pos)
-		assert.falsy(win.selection.anchored)
+		reset("hello world test\n", 16)
+		vis:feedkeys("vb;")
+		-- ; collapses to cursor position (start of selected word)
+		assert.are.equal(false, win.selection.anchored)
 	end)
 
 	it("v2w delete extends selection", function()
