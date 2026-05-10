@@ -1039,6 +1039,7 @@ static KEY_ACTION_FN(ka_helix_goto_word)
 		return keys;
 	}
 	view_jump_labels_set(&win->view, labels, count);
+	vis_window_invalidate(win);
 	free(labels);
 	vis->jump_labels_active = true;
 	vis->jump_label_input_count = 0;
