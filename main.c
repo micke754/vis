@@ -133,6 +133,8 @@ static Vis vis[1];
 	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
 	X(ka_helix_match_bracket,            HELIX_MATCH_BRACKET,              0,                                        "vis-helix-match-bracket",             "Jump to matching bracket") \
 	X(ka_helix_goto_word,                 HELIX_GOTO_WORD,                  0,                                        "vis-helix-goto-word",                 "Show jump labels for visible words") \
+	X(ka_helix_replace_char,              HELIX_REPLACE_CHAR,                0,                                        "vis-helix-replace-char",              "Replace selection with character") \
+	X(ka_helix_replace_with_yanked,       HELIX_REPLACE_WITH_YANKED,         0,                                        "vis-helix-replace-with-yanked",       "Replace selection with yanked text") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \
