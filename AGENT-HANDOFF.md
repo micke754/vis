@@ -73,6 +73,13 @@
 - [ ] mi" / ma"  — quotes
 - [ ] mi[ / mi{ / mi<  — brackets
 
+## Replace
+- [ ] r  — replace selection with char
+- [ ] R  — replace selection with yanked text
+- [ ] vwr  — select word, replace with char
+- [ ] vw y R  — select word, yank, select other word, replace with yanked
+- [ ] ;R  — bare cursor R (no-op)
+
 ## Misc
 - [ ] %  — select all
 - [ ] Alt-s  — split on newlines

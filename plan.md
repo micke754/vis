@@ -189,6 +189,10 @@ All Helix logic now lives in `vis-helix.c`:
    - Run full manual test pass (see AGENT-HANDOFF.md).
 3. Paste parity only if reopened:
    - current behavior is accepted/preferred.
+4. `r` / `R` replace: ✅ complete
+   - `r` replaces selection with repeated char (bare cursor: single char).
+   - `R` replaces selection with yanked text (bare cursor: no-op).
+   - Registered as `vis-helix-replace-char` and `vis-helix-replace-with-yanked`.
 
 ## Runtime notes
 - Source-built runtime command:
