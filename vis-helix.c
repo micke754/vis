@@ -319,6 +319,7 @@ static bool helix_text_object(Vis *vis, const Arg *arg)
 			view_selections_set_directed(sel, &range, false);
 	}
 	vis->action.count = VIS_COUNT_UNKNOWN;
+	vis_window_invalidate(vis->win);
 	vis_draw(vis);
 	return true;
 }

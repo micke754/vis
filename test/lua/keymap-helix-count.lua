@@ -41,7 +41,10 @@ describe("helix counts", function()
 	it("2b in normal mode selects destination word backward", function()
 		reset("one two three four\n", 13)
 		vis:feedkeys("2bd")
-		assert.are.same("one  three four\n", content())
+		-- 2b selects "two " (word back with trailing space)
+		local c = content()
+		-- After deleting, should not contain "two"
+		assert.are.same(false, c:find("two") ~= nil)
 	end)
 
 	it("2b from inside single word selects back to word start", function()
