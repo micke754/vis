@@ -312,7 +312,7 @@ static bool helix_text_object(Vis *vis, const Arg *arg)
 				r.start--;
 				r.end++;
 			}
-			range = (sel->anchored || i > 0) ? text_range_union(&range, &r) : r;
+			range = (i > 0) ? text_range_union(&range, &r) : r;
 			pos = textobj->type & TEXTOBJECT_EXTEND_BACKWARD ? range.start : range.end;
 		}
 		if (text_range_valid(&range))
