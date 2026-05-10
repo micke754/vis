@@ -1240,11 +1240,8 @@ static KEY_ACTION_FN(ka_helix_append)
 		if (sel->anchored) {
 			Filerange range = view_selections_get(sel);
 			if (text_range_valid(&range)) {
-				size_t end = text_char_prev(txt, range.end);
-				/* If selection goes to line start, end is the newline before it.
-				   Move to end of previous line content instead. */
 				view_selection_clear(sel);
-				view_cursors_to(sel, end);
+				view_cursors_to(sel, range.end);
 			}
 		} else {
 			/* bare cursor: move one char right (Vim-like append) */
