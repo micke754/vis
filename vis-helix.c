@@ -1084,8 +1084,12 @@ static KEY_ACTION_FN(ka_helix_replace_char)
 	/* For each selection, replace its content with the typed character
 	   repeated to match the selection's grapheme count.
 	   If the cursor is not anchored (bare cursor), replace the single
-	   character under cursor. */
-	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+	   character under cursor.
+	   Process in reverse order to avoid position shifts. */
+	Selection *last_r = view_selections(view);
+	while (last_r && last_r->next)
+		last_r = last_r->next;
+	for (Selection *sel = last_r; sel; sel = sel->prev) {
 		size_t pos = view_cursors_pos(sel);
 		if (pos == EPOS)
 			continue;
@@ -1145,7 +1149,11 @@ static KEY_ACTION_FN(ka_helix_replace_with_yanked)
 
 	bool multiple_cursors = view->selection_count > 1;
 
-	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+	/* Process in reverse order to avoid position shifts from text modifications */
+	Selection *last_R = view_selections(view);
+	while (last_R && last_R->next)
+		last_R = last_R->next;
+	for (Selection *sel = last_R; sel; sel = sel->prev) {
 		size_t pos = view_cursors_pos(sel);
 		if (pos == EPOS)
 			continue;

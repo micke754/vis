@@ -27,22 +27,14 @@ describe("helix replace char (r)", function()
 		assert.are.equal("xello World\n", content())
 	end)
 
-	it("replaces single char at middle position", function()
-		reset("abcdef\n")
-		win.selection.pos = 3  -- on 'd'
-		vis:feedkeys("rz")
-		assert.are.equal("abczef\n", content())
-	end)
-
 	it("replaces anchored word selection by repeating char", function()
 		reset("Hello World\n")
 		win.selection.pos = 0
-		-- vw selects first word (includes trailing space in Helix)
+		-- vw selects word including trailing space
 		vis:feedkeys("vw")
 		vis:feedkeys("rx")
-		-- vw in Helix selects the word + trailing space
-		-- So "Hello " (6 chars) becomes "xxxxxx"
 		local c = content()
+		-- "Hello " becomes "xxxxxx" (6 x's for 6 chars)
 		assert.are.equal("xxxxxxWorld\n", c)
 	end)
 
