@@ -18,12 +18,12 @@
 #include "vis-marks.c"
 #include "vis-modes.c"
 #include "vis-motions.c"
+#include "vis-helix.c"
 #include "vis-operators.c"
 #include "vis-prompt.c"
 #include "vis-registers.c"
 #include "vis-subprocess.c"
 #include "vis-text-objects.c"
-#include "vis-helix.c"
 
 /** window / file handling */
 
