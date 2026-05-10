@@ -161,30 +161,13 @@ Manual QC: passed with flying colors. Paste differs from upstream Helix but is a
 
 ## Known architectural debt
 
-### 1. Helix word logic is split
-Current places:
-- `vis-motions.c`: Helix char categories/boundaries and motion functions.
-- `vis.c`: `helix_word_range()` and helper functions.
-
-Desired future cleanup:
-- centralize token/range logic into one C API.
-
-### 2. Old Helix word compatibility code still exists
-- `vis.c` now has an early Helix word path for normal/select word motions.
-- Old generic movement special cases were reduced and extracted into helpers:
-  - `helix_visual_word_prepare`
-  - `helix_visual_word_adjust`
-  - `helix_word_after_motion`
-  - `helix_select_extend`
-- Remaining code appears to protect visual/Vim fallback behavior. Do not delete casually; first verify visual/Vim impact.
-
-### 3. Search/select behavior still partial
-- Normal/select `*`, `n/N` behavior improved and covered for literal punctuation, whitespace, collapse, and regex match width.
-- Multi-selection search semantics are good enough for current daily-driver use; deeper parity deferred.
-
-### 4. Surround/textobject helpers live in `main.c`
-- `ms`, `md`, `mr`, `mi`, `ma` are covered for common cases.
-- Future cleanup can move these helpers to a dedicated C module.
+### Centralized in vis-helix.c
+All Helix logic now lives in `vis-helix.c`:
+- Key actions (star search, surround, select, yank, rotation, etc.)
+- Motion helpers (word range, search repeat, find select, operator context)
+- Prompt handlers (select/split/keep/remove regex)
+- Textobject selection logic
+- `main.c` slimmed by ~300 lines, `vis.c` by ~450, `vis-prompt.c` by ~160.
 
 ### Deferred
 - Selection-content rotation (`Alt-(`/`Alt-)`).
@@ -200,17 +183,12 @@ Desired future cleanup:
 3. Add regressions for any manual bugs found before fixing.
 
 ### Next implementation phase
-1. Word architecture cleanup:
-   - move/centralize Helix token helpers,
-   - remove dead special cases carefully,
-   - keep all focused tests green.
-2. Surround/textobject cleanup:
-   - move helpers out of `main.c` if they keep growing,
-   - add regressions for any manual edge bugs.
+1. Architecture cleanup: ✅ complete
+   - All Helix logic centralized in `vis-helix.c`.
+2. Manual QC:
+   - Run full manual test pass (see AGENT-HANDOFF.md).
 3. Paste parity only if reopened:
-   - current behavior is accepted/preferred despite differing from upstream Helix,
-   - replacement semantics if selection active,
-   - linewise/distribution edge cases.
+   - current behavior is accepted/preferred.
 
 ## Runtime notes
 - Source-built runtime command:
