@@ -327,14 +327,18 @@ void vis_window_draw(Win *win) {
 			Line *line; int col;
 			if (!view_coord_get(&win->view, label->pos, &line, NULL, &col))
 				continue;
-			if (col >= 0 && col < line->width) {
-				line->cells[col].data[0] = label->text[0];
-				line->cells[col].data[1] = '\0';
-				line->cells[col].len = 1;
-				line->cells[col].width = 1;
-				ui_window_style_set(&win->vis->ui, win->id, &line->cells[col], UI_STYLE_JUMP_LABEL, false);
-			}
+			while (col < line->width && line->cells[col].len == 0)
+				col++;
+			if (col >= line->width)
+				continue;
+			line->cells[col].data[0] = label->text[0];
+			line->cells[col].data[1] = '\0';
+			line->cells[col].len = 1;
+			line->cells[col].width = 1;
+			ui_window_style_set(&win->vis->ui, win->id, &line->cells[col], UI_STYLE_JUMP_LABEL, false);
 			int nc = col + 1;
+			while (nc < line->width && line->cells[nc].len == 0)
+				nc++;
 			if (nc < line->width) {
 				line->cells[nc].data[0] = label->text[1];
 				line->cells[nc].data[1] = '\0';
