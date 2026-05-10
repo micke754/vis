@@ -331,8 +331,8 @@ void vis_window_draw(Win *win) {
 				col++;
 			if (col >= line->width)
 				continue;
+			memset(line->cells[col].data, 0, sizeof(line->cells[col].data));
 			line->cells[col].data[0] = label->text[0];
-			line->cells[col].data[1] = '\0';
 			line->cells[col].len = 1;
 			line->cells[col].width = 1;
 			ui_window_style_set(&win->vis->ui, win->id, &line->cells[col], UI_STYLE_JUMP_LABEL, false);
@@ -340,8 +340,8 @@ void vis_window_draw(Win *win) {
 			while (nc < line->width && line->cells[nc].len == 0)
 				nc++;
 			if (nc < line->width) {
+				memset(line->cells[nc].data, 0, sizeof(line->cells[nc].data));
 				line->cells[nc].data[0] = label->text[1];
-				line->cells[nc].data[1] = '\0';
 				line->cells[nc].len = 1;
 				line->cells[nc].width = 1;
 				ui_window_style_set(&win->vis->ui, win->id, &line->cells[nc], UI_STYLE_JUMP_LABEL, false);
