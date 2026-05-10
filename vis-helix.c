@@ -1196,3 +1196,64 @@ static KEY_ACTION_FN(ka_helix_replace_with_yanked)
 	vis_draw(vis);
 	return keys;
 }
+
+/* Helix i: insert before selection start */
+static KEY_ACTION_FN(ka_helix_insert)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+
+	Win *win = vis->win;
+	if (!win)
+		return keys;
+	View *view = &win->view;
+
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		if (sel->anchored) {
+			Filerange range = view_selections_get(sel);
+			if (text_range_valid(&range)) {
+				view_selection_clear(sel);
+				view_cursors_to(sel, range.start);
+			}
+		}
+		/* bare cursor: stay at current position */
+	}
+
+	vis_operator(vis, VIS_OP_MODESWITCH, VIS_MODE_INSERT);
+	vis_motion(vis, VIS_MOVE_NOP);
+	return keys;
+}
+
+/* Helix a: insert after selection end */
+static KEY_ACTION_FN(ka_helix_append)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+
+	Win *win = vis->win;
+	if (!win)
+		return keys;
+	Text *txt = vis_text(vis);
+	View *view = &win->view;
+
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		if (sel->anchored) {
+			Filerange range = view_selections_get(sel);
+			if (text_range_valid(&range)) {
+				size_t end = text_char_prev(txt, range.end);
+				/* If selection goes to line start, end is the newline before it.
+				   Move to end of previous line content instead. */
+				view_selection_clear(sel);
+				view_cursors_to(sel, end);
+			}
+		} else {
+			/* bare cursor: move one char right (Vim-like append) */
+			size_t pos = view_cursors_pos(sel);
+			view_cursors_to(sel, text_char_next(txt, pos));
+		}
+	}
+
+	vis_operator(vis, VIS_OP_MODESWITCH, VIS_MODE_INSERT);
+	vis_motion(vis, VIS_MOVE_NOP);
+	return keys;
+}
