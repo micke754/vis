@@ -13,6 +13,27 @@ static Regex *prompt_helix_regex(Vis *vis, const char *pattern) {
 	return regex;
 }
 
+static char *prompt_helix_pattern_resolve(Vis *vis, const char *pattern, bool save) {
+	if (!pattern)
+		return NULL;
+	/* strip trailing whitespace/newline */
+	size_t len = strlen(pattern);
+	while (len > 0 && (pattern[len-1] == '\n' || pattern[len-1] == ' ' || pattern[len-1] == '\t'))
+		len--;
+	if (len == 0) {
+		const char *fallback = register_get(vis, &vis->registers[VIS_REG_SEARCH], NULL);
+		return fallback ? strdup(fallback) : NULL;
+	}
+	char *copy = malloc(len + 1);
+	if (!copy)
+		return NULL;
+	memcpy(copy, pattern, len);
+	copy[len] = '\0';
+	if (save)
+		register_put0(vis, &vis->registers[VIS_REG_SEARCH], copy);
+	return copy;
+}
+
 static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
 		return false;
@@ -20,9 +41,14 @@ static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	if (!win)
 		return false;
 	Text *txt = win->file->text;
-	Regex *regex = prompt_helix_regex(vis, pattern);
-	if (!regex)
+	char *resolved = prompt_helix_pattern_resolve(vis, pattern, true);
+	if (!resolved)
 		return true;
+	Regex *regex = prompt_helix_regex(vis, resolved);
+	if (!regex) {
+		free(resolved);
+		return true;
+	}
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
@@ -45,6 +71,7 @@ static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 		}
 	}
 	text_regex_free(regex);
+	free(resolved);
 	if (ranges.count)
 		view_selections_set_all(&win->view, ranges, true);
 	else
@@ -60,9 +87,14 @@ static bool prompt_helix_keep_remove_regex(Vis *vis, const char *pattern, bool r
 	if (!win)
 		return false;
 	Text *txt = win->file->text;
-	Regex *regex = prompt_helix_regex(vis, pattern);
-	if (!regex)
+	char *resolved = prompt_helix_pattern_resolve(vis, pattern, true);
+	if (!resolved)
 		return true;
+	Regex *regex = prompt_helix_regex(vis, resolved);
+	if (!regex) {
+		free(resolved);
+		return true;
+	}
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
@@ -78,6 +110,7 @@ static bool prompt_helix_keep_remove_regex(Vis *vis, const char *pattern, bool r
 			*da_push(vis, &ranges) = selection;
 	}
 	text_regex_free(regex);
+	free(resolved);
 	if (ranges.count)
 		view_selections_set_all(&win->view, ranges, true);
 	else
@@ -93,9 +126,14 @@ static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
 	if (!win)
 		return false;
 	Text *txt = win->file->text;
-	Regex *regex = prompt_helix_regex(vis, pattern);
-	if (!regex)
+	char *resolved = prompt_helix_pattern_resolve(vis, pattern, true);
+	if (!resolved)
 		return true;
+	Regex *regex = prompt_helix_regex(vis, resolved);
+	if (!regex) {
+		free(resolved);
+		return true;
+	}
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
@@ -117,6 +155,7 @@ static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
 			*da_push(vis, &ranges) = text_range_new(start, selection.end);
 	}
 	text_regex_free(regex);
+	free(resolved);
 	if (ranges.count)
 		view_selections_set_all(&win->view, ranges, true);
 	free(ranges.data);
@@ -129,8 +168,6 @@ bool vis_prompt_cmd(Vis *vis, const char *cmd) {
 	if (vis->helix_prompt != HELIX_PROMPT_NONE) {
 		enum HelixPrompt prompt = vis->helix_prompt;
 		vis->helix_prompt = HELIX_PROMPT_NONE;
-		if (!cmd[0])
-			return true;
 		switch (prompt) {
 		case HELIX_PROMPT_SELECT_REGEX:
 			return prompt_helix_select_regex(vis, cmd);
@@ -144,8 +181,13 @@ bool vis_prompt_cmd(Vis *vis, const char *cmd) {
 			break;
 		}
 	}
-	if (!cmd[0] || !cmd[1])
+	if (!cmd[0] || !cmd[1]) {
+		if (cmd[0] == '/')
+			vis_motion(vis, VIS_MOVE_SEARCH_REPEAT_FORWARD);
+		else if (cmd[0] == '?')
+			vis_motion(vis, VIS_MOVE_SEARCH_REPEAT_BACKWARD);
 		return true;
+	}
 	switch (cmd[0]) {
 	case '/':
 		return vis_motion(vis, VIS_MOVE_SEARCH_FORWARD, cmd+1);
@@ -216,6 +258,12 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 			range = text_range_new(prev, next);
 		}
 		text_regex_free(regex);
+	}
+	if (vis->helix_prompt != HELIX_PROMPT_NONE && !text_range_valid(range)) {
+		size_t pos = view_cursor_get(view);
+		size_t line_start = text_line_begin(txt, pos);
+		size_t line_end = text_line_end(txt, pos);
+		range = text_range_new(line_start, line_end);
 	}
 	if (text_range_valid(range))
 		cmd = text_bytes_alloc0(txt, range.start, text_range_size(range));

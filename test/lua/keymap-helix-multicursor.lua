@@ -80,10 +80,10 @@ describe("helix multicursor", function()
 		assert.are.same("abcabc\ndefdef\n", content())
 	end)
 
-	it("star registers all selections as alternatives", function()
+	it("star uses primary selection only", function()
 		reset("abc\ndef\n")
 		vis:feedkeys("Cw*")
-		assert.are.same("abc|def\0", vis.registers['/'][1])
+		assert.are.same("def\0", vis.registers['/'][1])
 	end)
 
 	it("Alt-s splits selection on newlines", function()

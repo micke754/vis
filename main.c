@@ -391,10 +391,27 @@ static KEY_ACTION_FN(ka_selections_align_indent)
 static KEY_ACTION_FN(ka_selections_clear)
 {
 	View *view = vis_view(vis);
-	if (view->selection_count > 1)
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && view->selection_count > 1) {
+		Selection *primary = view_selections_primary_get(view);
+		Filerange keep = primary ? view_selections_get(primary) : text_range_empty();
+		bool anchored = primary && primary->anchored;
+		size_t pos = primary ? view_cursors_pos(primary) : view_cursor_get(view);
 		view_selections_dispose_all(view);
-	else
+		if (text_range_valid(&keep)) {
+			Selection *s = view_selections_new(view, pos);
+			if (s) {
+				view_selections_set(s, &keep);
+				s->anchored = anchored;
+				view_selections_primary_set(s);
+			}
+		} else if (!view->selection_count) {
+			view_selections_new(view, pos);
+		}
+	} else if (view->selection_count > 1) {
+		view_selections_dispose_all(view);
+	} else {
 		view_selection_clear(view_selections_primary_get(view));
+	}
 	return keys;
 }
 
@@ -1006,41 +1023,29 @@ static KEY_ACTION_FN(ka_helix_search_word)
 		return keys;
 	Text *txt = vis_text(vis);
 	View *view = vis_view(vis);
-	Buffer pattern = {0}, message = {0};
-	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
-		Filerange range = sel->anchored ? view_selections_get(sel) : text_object_word(txt, view_cursors_pos(sel));
-		if (!text_range_valid(&range))
-			continue;
-		char *fragment = text_bytes_alloc0(txt, range.start, text_range_size(&range));
-		if (!fragment)
-			continue;
-		if (buffer_length0(&pattern) && !buffer_append(&pattern, "|", 1)) {
-			free(fragment);
-			break;
-		}
-		if (!helix_search_escape_append(&pattern, fragment)) {
-			free(fragment);
-			break;
-		}
-		if (buffer_length0(&message) && !buffer_append(&message, "|", 1)) {
-			free(fragment);
-			break;
-		}
-		buffer_append(&message, fragment, strlen(fragment));
-		if (!sel->anchored)
-			view_selections_set_directed(sel, &range, false);
+	Selection *sel = view_selections_primary_get(view);
+	if (!sel)
+		return keys;
+	Filerange range = sel->anchored ? view_selections_get(sel) : text_object_word(txt, view_cursors_pos(sel));
+	if (!text_range_valid(&range))
+		return keys;
+	char *fragment = text_bytes_alloc0(txt, range.start, text_range_size(&range));
+	if (!fragment)
+		return keys;
+	Buffer pattern = {0};
+	if (!helix_search_escape_append(&pattern, fragment)) {
 		free(fragment);
-	}
-	if (!buffer_length0(&pattern)) {
 		buffer_release(&pattern);
-		buffer_release(&message);
 		return keys;
 	}
+	buffer_terminate(&pattern);
+	if (!sel->anchored)
+		view_selections_set_directed(sel, &range, false);
 	register_put0(vis, &vis->registers[VIS_REG_SEARCH], buffer_content0(&pattern));
 	vis->search_direction = arg->i > 0 ? VIS_MOVE_SEARCH_REPEAT_FORWARD : VIS_MOVE_SEARCH_REPEAT_BACKWARD;
-	vis_info_show(vis, "Search pattern set: %s", buffer_content0(&message));
+	vis_info_show(vis, "Search pattern set: %s", fragment);
+	free(fragment);
 	buffer_release(&pattern);
-	buffer_release(&message);
 	return keys;
 }
 
