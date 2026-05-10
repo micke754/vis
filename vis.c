@@ -321,6 +321,36 @@ void vis_window_draw(Win *win) {
 		window_draw_selections(win);
 	window_draw_eof(win);
 
+	/* Render jump labels on View cells */
+	if (win->view.jump_labels_count > 0) {
+		for (int ji = 0; ji < win->view.jump_labels_count; ji++) {
+			JumpLabel *label = &win->view.jump_labels[ji];
+			Line *jline; int jcol;
+			if (!view_coord_get(&win->view, label->pos, &jline, NULL, &jcol))
+				continue;
+			/* Skip continuation cells (multi-column chars) */
+			while (jcol < jline->width && jline->cells[jcol].len == 0)
+				jcol++;
+			if (jcol >= jline->width)
+				continue;
+			memset(jline->cells[jcol].data, 0, sizeof(jline->cells[jcol].data));
+			jline->cells[jcol].data[0] = label->text[0];
+			jline->cells[jcol].len = 1;
+			jline->cells[jcol].width = 1;
+			ui_window_style_set(&win->vis->ui, win->id, &jline->cells[jcol], UI_STYLE_JUMP_LABEL, false);
+			int jnc = jcol + 1;
+			while (jnc < jline->width && jline->cells[jnc].len == 0)
+				jnc++;
+			if (jnc < jline->width) {
+				memset(jline->cells[jnc].data, 0, sizeof(jline->cells[jnc].data));
+				jline->cells[jnc].data[0] = label->text[1];
+				jline->cells[jnc].len = 1;
+				jline->cells[jnc].width = 1;
+				ui_window_style_set(&win->vis->ui, win->id, &jline->cells[jnc], UI_STYLE_JUMP_LABEL, false);
+			}
+		}
+	}
+
 	if (win->options & UI_OPTION_STATUSBAR)
 		vis_event_emit(vis, VIS_EVENT_WIN_STATUS, win);
 }

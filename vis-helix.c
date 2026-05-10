@@ -1021,6 +1021,12 @@ static KEY_ACTION_FN(ka_helix_goto_word)
 			pos = word.end;
 			continue;
 		}
+		/* Skip non-alphanumeric ranges (spaces, punctuation, etc.) */
+		char c;
+		if (!text_byte_get(txt, word.start, &c) || (!isalnum((unsigned char)c) && c != '_')) {
+			pos = word.end;
+			continue;
+		}
 		/* Allocate/grow labels array */
 		labels = realloc(labels, (count + 1) * sizeof(JumpLabel));
 		if (!labels)

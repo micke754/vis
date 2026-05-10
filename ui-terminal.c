@@ -225,35 +225,6 @@ static void ui_window_draw(Win *win) {
 	Cell *cells = ui->cells + y * ui->width;
 	if (x + sidebar_width + view_width > ui->width)
 		view_width = ui->width - x - sidebar_width;
-		/* Render jump labels on terminal cells before the main copy */
-	if (win->view.jump_labels_count > 0) {
-		for (int ji = 0; ji < win->view.jump_labels_count; ji++) {
-			JumpLabel *label = &win->view.jump_labels[ji];
-			Line *jline; int jcol;
-			if (!view_coord_get(view, label->pos, &jline, NULL, &jcol))
-				continue;
-			/* Advance to next real cell */
-			while (jcol < view_width && jline->cells[jcol].len == 0)
-				jcol++;
-			if (jcol >= view_width)
-				continue;
-			memset(jline->cells[jcol].data, 0, sizeof(jline->cells[jcol].data));
-			jline->cells[jcol].data[0] = label->text[0];
-			jline->cells[jcol].len = 1;
-			jline->cells[jcol].width = 1;
-			ui_window_style_set(ui, win->id, &jline->cells[jcol], UI_STYLE_JUMP_LABEL, false);
-			int jnc = jcol + 1;
-			while (jnc < view_width && jline->cells[jnc].len == 0)
-				jnc++;
-			if (jnc < view_width) {
-				memset(jline->cells[jnc].data, 0, sizeof(jline->cells[jnc].data));
-				jline->cells[jnc].data[0] = label->text[1];
-				jline->cells[jnc].len = 1;
-				jline->cells[jnc].width = 1;
-				ui_window_style_set(ui, win->id, &jline->cells[jnc], UI_STYLE_JUMP_LABEL, false);
-			}
-		}
-	}
 for (const Line *l = line; l; l = l->next, y++) {
 		if (sidebar) {
 			if (!l->lineno || !l->len || l->lineno == prev_lineno) {
