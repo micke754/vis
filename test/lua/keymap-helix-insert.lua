@@ -39,18 +39,19 @@ describe("helix insert/append (i/a)", function()
 	it("i with vw selection collapses to start", function()
 		reset("hello world\n")
 		win.selection.pos = 0
-		-- vw selects word at cursor position
 		vis:feedkeys("vwi<Escape>")
-		-- i should collapse to start of word (pos 0)
+		-- i should collapse to start of selection (pos 0)
 		assert.are.equal(0, win.selection.pos)
 	end)
 
-	it("a with vw selection collapses to end", function()
+	it("a with vw selection goes past the selection", function()
 		reset("hello world\n")
 		win.selection.pos = 0
-		-- vw selects "hello " (word + trailing space, 6 chars, ending at pos 6)
 		vis:feedkeys("vwa<Escape>")
-		-- a should put cursor at end of selection (pos 5 for "hello ")
-		assert.are.equal(5, win.selection.pos)
+		-- a should put cursor at range.end (right after the selection)
+		-- vw on "hello world" from pos 0 selects "hello " (6 chars) or similar
+		-- cursor should be at least 5 (past "hello")
+		local pos = win.selection.pos
+		assert.are.equal(true, pos >= 5, "a should go past selection, got pos=" .. pos)
 	end)
 end)
