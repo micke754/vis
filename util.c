@@ -88,10 +88,9 @@ memory_scan_reverse(const void *memory, uint8_t byte, ptrdiff_t n)
 static str8
 str8_from_c_str(char *c_str)
 {
-	str8 result = {
-		.length = strlen(c_str),
-		.data   = (uint8_t *)c_str,
-	};
+	str8 result = {.data = (uint8_t *)c_str};
+	if (c_str) while (*c_str) c_str++;
+	result.length = (uint8_t *)c_str - result.data;
 	return result;
 }
 
