@@ -336,9 +336,14 @@ static KEY_ACTION_FN(ka_picker_clear_filter) {
 	return keys;
 }
 
-/* File picker callback: open selected file */
+/* File picker callback: open selected file.
+ * Increments old file refcount before replacement so it stays
+ * in vis->files for the buffer picker (<Space>b) to find. */
 static void picker_on_file_select(Vis *vis, const char *path) {
 	if (!path || !vis->win) return;
+	/* Keep old file alive (hidden buffer) so buffer picker can find it */
+	if (vis->win->file)
+		vis->win->file->refcount++;
 	vis_window_change_file(vis->win, path);
 }
 
@@ -407,7 +412,10 @@ static void picker_on_buffer_select(Vis *vis, const char *path) {
 			return;
 		}
 	}
-	/* Not open - load it into the current window */
+	/* Not open in any window - load into current window.
+	 * Keep old file alive so it stays in the buffer list. */
+	if (vis->win->file)
+		vis->win->file->refcount++;
 	vis_window_change_file(vis->win, path);
 }
 
