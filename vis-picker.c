@@ -347,6 +347,25 @@ static void picker_on_file_select(Vis *vis, const char *path) {
 	vis_window_change_file(vis->win, path);
 }
 
+/* Check if a file is binary by reading the first 8KB.
+ * Returns true if the file contains null bytes or is predominantly non-printable. */
+static bool is_binary_file(const char *path) {
+	FILE *f = fopen(path, "rb");
+	if (!f) return true; /* can't read = skip */
+	unsigned char buf[8192];
+	size_t n = fread(buf, 1, sizeof(buf), f);
+	fclose(f);
+	if (n == 0) return false; /* empty file = not binary */
+	int non_printable = 0;
+	for (size_t i = 0; i < n; i++) {
+		if (buf[i] == 0) return true; /* null byte = binary */
+		if (buf[i] < 7 || (buf[i] > 14 && buf[i] < 32))
+			non_printable++;
+	}
+	/* If > 30%% non-printable, treat as binary (catches most binaries) */
+	return (non_printable * 100 / n) > 30;
+}
+
 /* Recursive helper: collect files from directory tree.
  * depth=0 means list files/dirs in given dir. depth>0 recurses into subdirs.
  * prefix is the relative path to prepend (used for recursion). */
@@ -375,6 +394,14 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
 				picker_collect_files(fullpath, relpath, items, count, capacity, depth - 1);
 				continue;
 			}
+		}
+
+		/* Skip binary files (executables, object files, etc.) */
+		{
+			char fullpath[4096];
+			snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
+			if (is_binary_file(fullpath))
+				continue;
 		}
 
 		/* Add file to list */
