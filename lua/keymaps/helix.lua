@@ -144,6 +144,7 @@ local normal = {
 	{ ".", "<vis-helix-repeat>", "Repeat last change" },
 	{ "<C-a>", "<vis-helix-increment>", "Increment number" },
 	{ "<Space>f", "<vis-picker-files>", "Open file picker" },
+	{ "<Space>b", "<vis-picker-buffers>", "Open buffer picker" },
 	{ "<C-x>", "<vis-helix-decrement>", "Decrement number" },
 	{ "r", "<vis-helix-replace-char>", "Replace selection with char" },
 	{ "R", "<vis-helix-replace-with-yanked>", "Replace selection with yanked" },

@@ -237,6 +237,11 @@ struct Vis {
 		Win *saved_win;
 		Mode *saved_mode;
 	} picker;
+	struct {
+		char **lines;
+		int line_count;
+		char *path;       /* currently previewed file path */
+	} picker_preview;
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
 	char *shell;                         /* shell used to launch external commands */
 	Map *cmds;                           /* ":"-commands, used for unique prefix queries */

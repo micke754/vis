@@ -153,6 +153,7 @@ static Vis vis[1];
 	X(ka_picker_delete_word,             PICKER_DELETE_WORD,               0,                                        "vis-picker-delete-word",               "Picker delete filter word") \
 	X(ka_picker_clear_filter,           PICKER_CLEAR_FILTER,              0,                                        "vis-picker-clear-filter",              "Picker clear filter") \
 	X(ka_picker_files,                   PICKER_FILES,                     0,                                        "vis-picker-files",                     "Open file picker") \
+	X(ka_picker_buffers,                 PICKER_BUFFERS,                   0,                                        "vis-picker-buffers",                   "Open buffer picker") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \

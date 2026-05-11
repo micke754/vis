@@ -21,6 +21,8 @@ void vis_picker_input(Vis *vis, const char *data, size_t len) {
 	vis_draw(vis);
 }
 
+static void picker_preview_load(Vis *vis, const char *path);
+
 /* Set up key bindings for the picker mode (called once) */
 static bool picker_bindings_init(Vis *vis) {
 	Mode *picker_mode = &vis_modes[VIS_MODE_PICKER];
@@ -107,6 +109,9 @@ static void picker_close(Vis *vis, bool accept) {
 	free(vis->picker.filtered);
 	free(vis->picker.filtered_indices);
 
+	/* Clean up preview */
+	picker_preview_load(vis, NULL);
+
 	vis->picker.active = false;
 	vis->picker.items = NULL;
 	vis->picker.filtered = NULL;
@@ -125,17 +130,124 @@ static void picker_close(Vis *vis, bool accept) {
 		on_select(vis, selection);
 }
 
-/* Refilter items based on current filter string */
+/* Fuzzy match: returns score if needle matches haystack, 0 if no match.
+   Higher score = better match. Uses fzy-style scoring. */
+static double picker_fuzzy_score(const char *haystack, const char *needle) {
+	if (!needle[0]) return 1.0;
+	if (!haystack[0]) return 0.0;
+
+	size_t nlen = strlen(needle);
+	size_t hlen = strlen(haystack);
+	if (nlen > hlen) return 0.0;
+
+	/* Find match positions greedily */
+	int positions[256]; /* positions[i] = index in haystack where needle[i] matches */
+	size_t hi = 0;
+	for (size_t ni = 0; ni < nlen; ni++) {
+		char nc = needle[ni];
+		char nc_lower = (nc >= 'A' && nc <= 'Z') ? nc + 32 : nc;
+		bool found = false;
+		while (hi < hlen) {
+			char hc = haystack[hi];
+			char hc_lower = (hc >= 'A' && hc <= 'Z') ? hc + 32 : hc;
+			if (hc_lower == nc_lower) {
+				positions[ni] = (int)hi;
+				hi++;
+				found = true;
+				break;
+			}
+			hi++;
+		}
+		if (!found) return 0.0;
+	}
+
+	/* Calculate score */
+	double score = 0.0;
+	for (size_t i = 0; i < nlen; i++) {
+		int pos = positions[i];
+		score += 1.0;
+		/* Bonus for matching at start */
+		if (pos == 0) score += 5.0;
+		/* Bonus for matching after separator */
+		if (pos > 0) {
+			char prev = haystack[pos - 1];
+			if (prev == '/' || prev == '_' || prev == '-' || prev == '.' || prev == ' ')
+				score += 2.0;
+		}
+		/* Bonus for consecutive matches */
+		if (i > 0 && positions[i] == positions[i-1] + 1) score += 2.0;
+		/* Bonus for exact case match */
+		if (needle[i] == haystack[pos]) score += 0.5;
+	}
+	/* Penalty for gaps */
+	for (size_t i = 1; i < nlen; i++) {
+		int gap = positions[i] - positions[i-1] - 1;
+		score -= gap * 0.5;
+	}
+	/* Prefer shorter spans */
+	int span = positions[nlen-1] - positions[0] + 1;
+	score += ((int)hlen - span) * 0.1;
+
+	return score;
+}
+
+/* Internal: scored item for sorting */
+typedef struct {
+	int original_index;
+	double score;
+} ScoredItem;
+
+static int scored_item_cmp(const void *a, const void *b) {
+	const ScoredItem *sa = (const ScoredItem *)a;
+	const ScoredItem *sb = (const ScoredItem *)b;
+	/* Higher score first */
+	if (sa->score > sb->score) return -1;
+	if (sa->score < sb->score) return 1;
+	/* Break ties by original order */
+	return (sa->original_index > sb->original_index) - (sa->original_index < sb->original_index);
+}
+
+/* Refilter items based on current filter string, sorted by fuzzy score */
 void picker_refilter(Vis *vis) {
-	vis->picker.filtered_count = 0;
-	for (int i = 0; i < vis->picker.item_count; i++) {
-		if (vis->picker.filter_len == 0 ||
-		    strstr(vis->picker.items[i], vis->picker.filter)) {
-			vis->picker.filtered[vis->picker.filtered_count] = vis->picker.items[i];
-			vis->picker.filtered_indices[vis->picker.filtered_count] = i;
-			vis->picker.filtered_count++;
+	if (vis->picker.filter_len == 0) {
+		/* No filter: show all items in original order */
+		vis->picker.filtered_count = vis->picker.item_count;
+		for (int i = 0; i < vis->picker.item_count; i++) {
+			vis->picker.filtered[i] = vis->picker.items[i];
+			vis->picker.filtered_indices[i] = i;
+		}
+		return;
+	}
+
+	/* Score all items */
+	int max_items = vis->picker.item_count;
+	ScoredItem *scored = malloc(max_items * sizeof(ScoredItem));
+	if (!scored) {
+		vis->picker.filtered_count = 0;
+		return;
+	}
+	int scored_count = 0;
+	for (int i = 0; i < max_items; i++) {
+		double s = picker_fuzzy_score(vis->picker.items[i], vis->picker.filter);
+		if (s > 0.0) {
+			scored[scored_count].original_index = i;
+			scored[scored_count].score = s;
+			scored_count++;
 		}
 	}
+
+	/* Sort by score descending */
+	qsort(scored, scored_count, sizeof(ScoredItem), scored_item_cmp);
+
+	/* Build filtered list */
+	vis->picker.filtered_count = 0;
+	for (int i = 0; i < scored_count; i++) {
+		int idx = scored[i].original_index;
+		vis->picker.filtered[i] = vis->picker.items[idx];
+		vis->picker.filtered_indices[i] = idx;
+		vis->picker.filtered_count++;
+	}
+	free(scored);
 }
 
 /* Picker key actions */
@@ -241,15 +353,97 @@ void picker_open_files(Vis *vis) {
 	picker_open(vis, items, count, picker_on_file_select);
 }
 
+/* Buffer picker callback: switch to selected buffer */
+static void picker_on_buffer_select(Vis *vis, const char *path) {
+	if (!path) return;
+	/* Find or create a window for this file */
+	for (Win *win = vis->windows; win; win = win->next) {
+		if (win->file && win->file->name && strcmp(win->file->name, path) == 0) {
+			vis->win = win;
+			return;
+		}
+	}
+	vis_window_new(vis, path);
+}
+
+/* Open buffer picker: list open buffers */
+void picker_open_buffers(Vis *vis) {
+	/* Count non-internal files */
+	int count = 0;
+	for (File *f = vis->files; f; f = f->next) {
+		if (!f->internal) count++;
+	}
+	if (count == 0) return;
+
+	char **items = calloc(count, sizeof(char*));
+	int i = 0;
+	for (File *f = vis->files; f; f = f->next) {
+		if (f->internal) continue;
+		items[i++] = strdup(f->name ? f->name : "[unnamed]");
+	}
+	picker_open(vis, items, count, picker_on_buffer_select);
+}
+
 static KEY_ACTION_FN(ka_picker_files) {
 	if (vis->picker.active) return keys;
 	picker_open_files(vis);
 	return keys;
 }
 
+static KEY_ACTION_FN(ka_picker_buffers) {
+	if (vis->picker.active) return keys;
+	picker_open_buffers(vis);
+	return keys;
+}
+
+/* Load preview for a file: first N lines */
+static void picker_preview_load(Vis *vis, const char *path) {
+	/* Free previous preview */
+	for (int i = 0; i < vis->picker_preview.line_count; i++)
+		free(vis->picker_preview.lines[i]);
+	free(vis->picker_preview.lines);
+	free(vis->picker_preview.path);
+	vis->picker_preview.lines = NULL;
+	vis->picker_preview.line_count = 0;
+	vis->picker_preview.path = NULL;
+
+	if (!path) return;
+
+	FILE *f = fopen(path, "r");
+	if (!f) return;
+
+	int capacity = 32;
+	vis->picker_preview.lines = calloc(capacity, sizeof(char*));
+	char buf[1024];
+	while (vis->picker_preview.line_count < capacity && fgets(buf, sizeof(buf), f)) {
+		size_t len = strlen(buf);
+		if (len > 0 && buf[len-1] == '\n') buf[--len] = '\0';
+		vis->picker_preview.lines[vis->picker_preview.line_count++] = strdup(buf);
+	}
+	fclose(f);
+	vis->picker_preview.path = strdup(path);
+}
+
+/* Check if preview needs updating for current selection */
+static void picker_preview_update(Vis *vis) {
+	if (!vis->picker.active || vis->picker.filtered_count == 0) {
+		picker_preview_load(vis, NULL);
+		return;
+	}
+	int idx = vis->picker.filtered_indices[vis->picker.selected];
+	const char *path = vis->picker.items[idx];
+
+	/* Only reload if path changed */
+	if (vis->picker_preview.path && strcmp(vis->picker_preview.path, path) == 0)
+		return;
+
+	picker_preview_load(vis, path);
+}
+
 /* Draw the picker overlay into the UI cells buffer */
 void picker_draw(Vis *vis) {
 	if (!vis->picker.active) return;
+	picker_preview_update(vis);
 
 	Ui *ui = &vis->ui;
 	int width = ui->width;
@@ -361,6 +555,30 @@ void picker_draw(Vis *vis) {
 		ui->cells[row * width + picker_x + picker_width - 1] = (Cell){ .data = "┘", .len = 3, .width = 1, .style = border_style };
 		for (int x = picker_x + 1; x < picker_x + picker_width - 1 && x < width; x++)
 			ui->cells[row * width + x] = (Cell){ .data = "─", .len = 3, .width = 1, .style = border_style };
+	}
+
+	/* Preview pane: right side of picker */
+	if (vis->picker_preview.line_count > 0) {
+		int preview_x = picker_x + picker_width + 2;
+		int preview_width = width - preview_x - 2;
+		if (preview_width > 20) {
+			/* Preview border left */
+			for (int py = picker_y; py < picker_y + picker_height && py < height; py++) {
+				ui->cells[py * width + preview_x - 1] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
+			}
+			/* Preview content */
+			CellStyle preview_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = 0 };
+			for (int i = 0; i < vis->picker_preview.line_count && (picker_y + 2 + i) < (picker_y + picker_height - 1); i++) {
+				int py = picker_y + 2 + i;
+				const char *line = vis->picker_preview.lines[i];
+				int px = preview_x;
+				for (int c = 0; line[c] && px < preview_x + preview_width && px < width; c++, px++) {
+					Cell ch = { .data = " ", .len = 1, .width = 1, .style = preview_style };
+					ch.data[0] = line[c];
+					ui->cells[py * width + px] = ch;
+				}
+			}
+		}
 	}
 
 	/* Position cursor at end of filter text */
