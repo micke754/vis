@@ -76,3 +76,38 @@ See bottom of this file for the full checklist. Key areas to test after changes:
 - [ ] Ctrl-a/Ctrl-x — increment/decrement (not yet implemented)
 - [ ] :set keymap vim / helix — profile switch
 - [ ] Statusline: NOR/SEL/INS
+
+## Picker Feature (Phase 1-3)
+
+### Architecture
+- `VIS_MODE_PICKER` — new vis mode with `input` callback for filter keystrokes
+- `vis->picker` — state struct: filter string, items array, filtered/sorted results, selection index, scroll offset, callbacks
+- `vis->picker_preview` — preview state: lines array, line count, cached path
+- `vis-picker.c` — all picker logic (~580 lines)
+- `ui_terminal.c` — `picker_draw()` called from `ui_draw()` after window rendering, before `blit()`
+- Drawing via Cell buffer overlay (no raw curses calls)
+
+### Key bindings (picker mode)
+- `j`/`<Down>`/`<C-n>` — next item
+- `k`/`<Up>`/`<C-p>` — previous item
+- `<Enter>`/`<C-j>` — accept selection
+- `<Escape>`/`<C-c>`/`<C-g>` — cancel
+- `<Backspace>`/`<C-h>` — delete filter char
+- `<C-w>` — delete filter word
+- `<C-u>` — clear filter
+
+### Helix keymaps
+- `<Space>f` — file picker (current directory)
+- `<Space>b` — buffer picker (open files)
+
+### Fuzzy matching
+- fzy-style scoring: consecutive bonus, word boundary bonus, start bonus, case match bonus, gap penalty
+- Results sorted by score descending; ties broken by original order
+- `strstr` fallback for empty filter (show all)
+
+### Preview pane
+- Shows first 32 lines of selected file on right side of picker
+- Only loads when selection changes
+- Caches path to avoid redundant file reads
+- Cleaned up on picker close
+
