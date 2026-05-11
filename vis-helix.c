@@ -1306,6 +1306,190 @@ static KEY_ACTION_FN(ka_helix_goto_viewport)
 	return keys;
 }
 
+
+/* Find number under or before cursor, parse it, and return its range.
+   Returns true if a number was found. */
+/* Helix o/O: open line below/above, clearing selections first */
+static KEY_ACTION_FN(ka_helix_openline)
+{
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
+		for (Selection *sel = view_selections(vis_view(vis)); sel; sel = view_selections_next(sel))
+			view_selection_clear(sel);
+	}
+	vis_operator(vis, VIS_OP_MODESWITCH, VIS_MODE_INSERT);
+	if (arg->i > 0) {
+		vis_motion(vis, VIS_MOVE_LINE_END);
+		vis_keys_feed(vis, "<Enter>");
+	} else {
+		if (vis->autoindent) {
+			vis_motion(vis, VIS_MOVE_LINE_START);
+			vis_keys_feed(vis, "<vis-motion-line-start>");
+		} else {
+			vis_motion(vis, VIS_MOVE_LINE_BEGIN);
+			vis_keys_feed(vis, "<vis-motion-line-begin>");
+		}
+		vis_keys_feed(vis, "<Enter><vis-motion-line-up>");
+	}
+	return keys;
+}
+
+static bool helix_find_number(Text *txt, size_t pos, Filerange *range, long *value) {
+	/* Scan backward for the start of the number */
+	size_t start = pos;
+	size_t size = text_size(txt);
+	/* First, skip past any non-digit/non-minus characters */
+	Iterator it = text_iterator_get(txt, pos);
+	char ch;
+	/* Check if we're on a digit or minus sign */
+	bool on_number = false;
+	while (it.pos > 0) {
+		if (!text_iterator_byte_get(&it, &ch))
+			break;
+		if ((ch >= '0' && ch <= '9') || ch == '-') {
+			on_number = true;
+			break;
+		}
+		if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '_'
+		    || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+		    || ch == '(' || ch == ')' || ch == '[' || ch == ']'
+		    || ch == '{' || ch == '}' || ch == ',' || ch == ';'
+		    || ch == '+' || ch == '=' || ch == '!' || ch == '#'
+		    || ch == '@' || ch == '$' || ch == '%' || ch == '^'
+		    || ch == '&' || ch == '|' || ch == '\\' || ch == '/'
+		    || ch == '*' || ch == '~' || ch == '\'') {
+			if (!text_iterator_byte_prev(&it, NULL))
+				break;
+			continue;
+		}
+		break;
+	}
+	if (!on_number) {
+		/* No number found before cursor, try forward */
+		it = text_iterator_get(txt, pos);
+		while (it.pos < size) {
+			if (!text_iterator_byte_get(&it, &ch))
+				break;
+			if (ch >= '0' && ch <= '9') {
+				on_number = true;
+				break;
+			}
+			if (ch == '-') {
+				it.pos = text_char_next(txt, it.pos);
+				it = text_iterator_get(txt, it.pos);
+				continue;
+			}
+			break;
+		}
+		if (!on_number)
+			return false;
+	}
+	pos = it.pos;
+	/* Now scan backward from pos to find the start of the number */
+	start = pos;
+	/* If we're on a digit, scan back past digits */
+	while (start > 0) {
+		char prev;
+		size_t prev_pos = text_char_prev(txt, start);
+		if (!text_byte_get(txt, prev_pos, &prev))
+			break;
+		if (prev >= '0' && prev <= '9') {
+			start = prev_pos;
+			continue;
+		}
+		if (prev == '-' && start > 0) {
+			/* Check if this minus is a negative sign (not a hyphen in a word) */
+			size_t prev_prev_pos = prev_pos > 0 ? text_char_prev(txt, prev_pos) : 0;
+			char prev_prev;
+			if (prev_pos == 0 || !text_byte_get(txt, prev_prev_pos, &prev_prev)
+			    || prev_prev == ' ' || prev_prev == '\t' || prev_prev == '\n'
+			    || prev_prev == '(' || prev_prev == '[' || prev_prev == '{'
+			    || prev_prev == ',' || prev_prev == '=' || prev_prev == '+'
+			    || prev_prev == ':' || prev_prev == ';') {
+				start = prev_pos;
+			}
+			break;
+		}
+		break;
+	}
+	/* Scan forward from start to find end of number */
+	size_t end = start;
+	bool has_dot = false;
+	while (end < size) {
+		char c;
+		if (!text_byte_get(txt, end, &c))
+			break;
+		if (c >= '0' && c <= '9') {
+			end = text_char_next(txt, end);
+			continue;
+		}
+		if (c == '.' && !has_dot) {
+			/* Decimal point - check if next char is a digit */
+			size_t next = text_char_next(txt, end);
+			char next_c;
+			if (next < size && text_byte_get(txt, next, &next_c) && next_c >= '0' && next_c <= '9') {
+				has_dot = true;
+				end = next;
+				continue;
+			}
+		}
+		break;
+	}
+	if (end == start)
+		return false;
+	/* Extract the number string */
+	size_t len = end - start;
+	char buf[64];
+	if (len >= sizeof(buf))
+		return false;
+	text_bytes_get(txt, start, len, buf);
+	buf[len] = '\0';
+	/* Parse the number */
+	char *endp;
+	double dval = strtod(buf, &endp);
+	if (endp == buf)
+		return false;
+	*value = (long)dval;
+	*range = text_range_new(start, end);
+	return true;
+}
+
+static KEY_ACTION_FN(ka_helix_increment)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	int count = vis->action.count != VIS_COUNT_UNKNOWN ? vis->action.count : 1;
+	int delta = (arg->i > 0) ? count : -count;
+	Win *win = vis->win;
+	if (!win)
+		return keys;
+	Text *txt = vis_text(vis);
+	View *view = &win->view;
+	Selection *sel = view_selections_primary_get(view);
+	if (!sel)
+		return keys;
+	for (Selection *s = sel; s; s = view_selections_next(s)) {
+		size_t pos = view_cursors_pos(s);
+		Filerange range;
+		long value;
+		if (!helix_find_number(txt, pos, &range, &value))
+			continue;
+		long new_value = value + delta;
+		char numbuf[64];
+		snprintf(numbuf, sizeof(numbuf), "%ld", new_value);
+
+		text_delete_range(txt, &range);
+		text_insert(vis, txt, range.start, numbuf, strlen(numbuf));
+		/* Move cursor to end of new number */
+		size_t new_pos = range.start + strlen(numbuf);
+		view_cursors_to(s, new_pos > 0 ? new_pos - 1 : 0);
+		view_selection_clear(s);
+	}
+	vis_window_invalidate(win);
+	vis_file_snapshot(vis, win->file);
+	vis_draw(vis);
+	return keys;
+}
+
 static KEY_ACTION_FN(ka_helix_repeat)
 {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)

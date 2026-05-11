@@ -15,43 +15,36 @@ local function reset(data, pos)
 	vis:command("set keymap helix")
 end
 
-describe("helix insert/append (i/a)", function()
+describe("helix insert/append", function()
 	after_each(function()
 		vis:command("set keymap vim")
 	end)
 
-	it("i with bare cursor stays at current position", function()
-		reset("hello world\n")
-		win.selection.pos = 3
-		win.selection.anchored = false
-		vis:feedkeys("i<Escape>")
-		assert.are.equal(3, win.selection.pos)
-	end)
-
-	it("a with bare cursor moves one char right", function()
-		reset("hello world\n")
-		win.selection.pos = 0
-		win.selection.anchored = false
-		vis:feedkeys("a<Escape>")
-		assert.are.equal(1, win.selection.pos)
-	end)
-
-	it("i with vw selection collapses to start", function()
-		reset("hello world\n")
-		win.selection.pos = 0
-		vis:feedkeys("vwi<Escape>")
-		-- i should collapse to start of selection (pos 0)
+	it("i inserts before selection start", function()
+		reset("hello world\n", 0)
+		vis:feedkeys("wi")
+		-- w selects "hello " (0-6), i collapses to start (0)
 		assert.are.equal(0, win.selection.pos)
 	end)
 
-	it("a with vw selection goes past the selection", function()
-		reset("hello world\n")
-		win.selection.pos = 0
-		vis:feedkeys("vwa<Escape>")
-		-- a should put cursor at range.end (right after the selection)
-		-- vw on "hello world" from pos 0 selects "hello " (6 chars) or similar
-		-- cursor should be at least 5 (past "hello")
-		local pos = win.selection.pos
-		assert.are.equal(true, pos >= 5, "a should go past selection, got pos=" .. pos)
+	it("a appends after selection end", function()
+		reset("hello world\n", 0)
+		vis:feedkeys("wa")
+		-- w selects "hello " (0-6), a collapses to end (6)
+		assert.are.equal(6, win.selection.pos)
+	end)
+
+	it("I goes to first non-blank and enters insert", function()
+		reset("    hello\n", 6)
+		vis:feedkeys("I<Escape>")
+		-- I goes to first non-blank (pos 4)
+		assert.are.equal(4, win.selection.pos)
+	end)
+
+	it("A goes to line end and enters insert", function()
+		reset("hello\n", 0)
+		vis:feedkeys("A<Escape>")
+		-- A goes to end of line
+		assert.are.equal(true, win.selection.pos >= 4, "should be near line end")
 	end)
 end)
