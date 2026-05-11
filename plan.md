@@ -67,12 +67,34 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - `mi<object>`, `ma<object>` + operator repeat
 - Storage: `HELIX_REPEAT_SURROUND_ADD`, etc. with paired chars
 
+## Completed (since last plan update)
+
+- `b` trailing-whitespace — already fixed in earlier commit
+- `Ctrl-a` / `Ctrl-x` — increment/decrement number under cursor
+- `A` / `I` — verified working with Helix semantics
+- `o` / `O` — clears selections, then opens line
+- `. ` repeat Phase 1 — semantic repeat for `r` and `R`
+
+## In Progress
+
+### File picker (Phase 1 complete)
+- VIS_MODE_PICKER added to mode enum
+- Overlay UI drawn via Cell buffer after window rendering
+- Real-time substring filter
+- Arrow keys / Ctrl-n/Ctrl-p navigation
+- Enter to select, Escape to cancel
+- Ctrl-u clear filter, Ctrl-w delete word, Backspace
+- `<Space>f` opens file picker (current directory)
+- File listing via opendir/readdir
+- Basic test: mode registration and regression
+
 ## Not Yet Started
 
-- `b` trailing-whitespace asymmetry for counted motions
-- `Ctrl-a` / `Ctrl-x` increment/decrement number under cursor
-- `A` / `I` line append/insert (Helix semantics)
-- `o` / `O` open line below/above (Helix selection semantics)
+- `. ` repeat Phase 2: selection+operator (`wd.`)
+- `. ` repeat Phase 3: surround/textobjects
+- Picker Phase 2: fuzzy matching (fzy algorithm)
+- Picker Phase 3: preview pane
+- Picker Phase 4: buffer picker (`<Space>b`), other backends
 - View mode: `V` line-select, `Ctrl-v` block-select
 - Selection-content rotation (`Alt-(`/`Alt-)`)
 - Split-window/profile lifecycle segfault
