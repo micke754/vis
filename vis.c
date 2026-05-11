@@ -1100,16 +1100,18 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 
 	while (cur && *cur) {
 		if (vis->jump_labels_active) {
+			const char *key_end = vis_keys_next(vis, cur);
+			size_t key_len = key_end ? (size_t)(key_end - cur) : 1;
 			Win *win = vis->win;
 			if (win && win->view.jump_labels_count > 0) {
 				char ch = *cur;
-				if (ch == 27 || ch == '\r' || ch == '\n' || ch == ' ') {
+				if (key_len != 1 || ch == 27 || ch == '\r' || ch == '\n' || ch == ' ') {
 					view_jump_labels_clear(&win->view);
 					vis->jump_labels_active = false;
 					vis->jump_label_input_count = 0;
 					vis_window_invalidate(win);
 					vis_draw(vis);
-					buffer_remove(buf, start - buf->data, 1);
+					buffer_remove(buf, start - buf->data, key_len);
 					return;
 				}
 				int matched = 0;
@@ -1140,7 +1142,7 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 								}
 							}
 							vis_draw(vis);
-							buffer_remove(buf, start - buf->data, 2);
+							buffer_remove(buf, start - buf->data, key_len);
 							return;
 						}
 					}
@@ -1151,11 +1153,11 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 					vis->jump_label_input_count = 0;
 					vis_window_invalidate(win);
 					vis_draw(vis);
-					buffer_remove(buf, start - buf->data, 1);
+					buffer_remove(buf, start - buf->data, key_len);
 					return;
 				}
 			}
-			buffer_remove(buf, start - buf->data, 1);
+			buffer_remove(buf, start - buf->data, key_len);
 			return;
 		}
 
