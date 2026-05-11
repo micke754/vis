@@ -562,11 +562,19 @@ void picker_draw(Vis *vis) {
 	int width = ui->width;
 	int height = ui->height;
 
-	int picker_height = height / 2;
-	int picker_width = width * 2 / 3;
-	if (picker_width < 40) picker_width = width - 4;
+	/* Proportional layout: adapt to terminal size */
+	int picker_height = height * 3 / 4;
+	if (picker_height < 10) picker_height = height - 2;
+	int picker_width = width * 4 / 5;
+	if (picker_width < 60) picker_width = width - 4;
 	int picker_x = (width - picker_width) / 2;
 	int picker_y = (height - picker_height) / 2;
+
+	/* File list takes ~35% on wide screens, minimum 28 columns */
+	int list_width = picker_width * 35 / 100;
+	if (list_width < 28) list_width = 28;
+	if (list_width > picker_width - 30) list_width = picker_width - 30;
+	int preview_width = picker_width - list_width - 1; /* -1 for divider */
 
 	CellStyle bg_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = 0 };
 	CellStyle border_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_BOLD };
@@ -591,24 +599,29 @@ void picker_draw(Vis *vis) {
 			ui->cells[row * width + x] = (Cell){ .data = "─", .len = 3, .width = 1, .style = border_style };
 	}
 
-	/* Filter prompt line */
+	/* Filter prompt line (spans full width) */
 	row = picker_y + 1;
 	if (row >= 0 && row < height) {
 		ui->cells[row * width + picker_x] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
+				/* Right edge of list panel (divider or right border) */
+		if (list_width > 0 && list_width < picker_width - 1) {
+			ui->cells[row * width + picker_x + list_width] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
+		}
 		ui->cells[row * width + picker_x + picker_width - 1] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
 
 		int px = picker_x + 1;
 		/* "> " prompt */
+		CellStyle prompt_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_BOLD };
 		const char *prompt = "> ";
 		for (int i = 0; prompt[i] && px < picker_x + picker_width - 1; i++, px++) {
-			Cell c = { .data = " ", .len = 1, .width = 1, .style = border_style };
+			Cell c = { .data = " ", .len = 1, .width = 1, .style = prompt_style };
 			c.data[0] = prompt[i];
 			ui->cells[row * width + px] = c;
 		}
 
-		/* Filter text (mutable copy to avoid compound literal issue) */
+		/* Filter text */
 		for (size_t i = 0; i < vis->picker.filter_len && px < picker_x + picker_width - 2; i++, px++) {
-			Cell c = { .data = " ", .len = 1, .width = 1, .style = border_style };
+			Cell c = { .data = " ", .len = 1, .width = 1, .style = bg_style };
 			c.data[0] = vis->picker.filter[i];
 			ui->cells[row * width + px] = c;
 		}
@@ -616,7 +629,13 @@ void picker_draw(Vis *vis) {
 			ui->cells[row * width + px] = space_cell;
 	}
 
-	/* Items */
+	/* Divider between list and preview on the filter line */
+	if (list_width > 0 && list_width < picker_width - 1) {
+		int div_x = picker_x + list_width;
+		ui->cells[row * width + div_x] = (Cell){ .data = "┬", .len = 3, .width = 1, .style = border_style };
+	}
+
+	/* Items list (left panel) */
 	int visible_rows = picker_height - 3;
 	if (vis->picker.selected < vis->picker.scroll_offset)
 		vis->picker.scroll_offset = vis->picker.selected;
@@ -628,6 +647,10 @@ void picker_draw(Vis *vis) {
 		if (row < 0 || row >= height) continue;
 
 		ui->cells[row * width + picker_x] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
+				/* Right edge of list panel (divider or right border) */
+		if (list_width > 0 && list_width < picker_width - 1) {
+			ui->cells[row * width + picker_x + list_width] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
+		}
 		ui->cells[row * width + picker_x + picker_width - 1] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
 
 		int sel_idx = i + vis->picker.scroll_offset;
@@ -637,13 +660,17 @@ void picker_draw(Vis *vis) {
 		if (sel_idx < vis->picker.filtered_count) {
 			const char *text = vis->picker.filtered[sel_idx];
 			int px = picker_x + 1;
-			for (int c = 0; text[c] && px < picker_x + picker_width - 1; c++, px++) {
+						int text_limit = picker_x + (list_width > 0 ? list_width : picker_width) - 1;
+			for (int c = 0; text[c] && px < text_limit && px < picker_x + picker_width - 1; c++, px++) {
 				Cell ch = { .data = " ", .len = 1, .width = 1, .style = style };
 				ch.data[0] = text[c];
 				ui->cells[row * width + px] = ch;
 			}
-			for (; px < picker_x + picker_width - 1; px++)
+			for (; px < text_limit && px < picker_x + picker_width - 1; px++)
 				ui->cells[row * width + px] = (Cell){ .data = " ", .len = 1, .width = 1, .style = style };
+			/* Fill rest of the picker row (preview area) */
+			for (; px < picker_x + picker_width - 1; px++)
+				ui->cells[row * width + px] = space_cell;
 		} else if (i == 0 && vis->picker.filtered_count == 0) {
 			const char *msg = "No matches";
 			CellStyle style = dim_style;
@@ -661,35 +688,56 @@ void picker_draw(Vis *vis) {
 		}
 	}
 
-	/* Bottom border */
+	/* Bottom border (with divider) */
 	row = picker_y + picker_height - 1;
 	if (row >= 0 && row < height) {
 		ui->cells[row * width + picker_x] = (Cell){ .data = "└", .len = 3, .width = 1, .style = border_style };
 		ui->cells[row * width + picker_x + picker_width - 1] = (Cell){ .data = "┘", .len = 3, .width = 1, .style = border_style };
-		for (int x = picker_x + 1; x < picker_x + picker_width - 1 && x < width; x++)
-			ui->cells[row * width + x] = (Cell){ .data = "─", .len = 3, .width = 1, .style = border_style };
+		for (int x = picker_x + 1; x < picker_x + picker_width - 1 && x < width; x++) {
+			if (x == picker_x + list_width && list_width > 0 && list_width < picker_width - 1)
+				ui->cells[row * width + x] = (Cell){ .data = "┴", .len = 3, .width = 1, .style = border_style };
+			else
+				ui->cells[row * width + x] = (Cell){ .data = "─", .len = 3, .width = 1, .style = border_style };
+		}
 	}
 
-	/* Preview pane: right side of picker */
-	if (vis->picker_preview.line_count > 0) {
-		int preview_x = picker_x + picker_width + 2;
-		int preview_width = width - preview_x - 2;
-		if (preview_width > 20) {
-			/* Preview border left */
-			for (int py = picker_y; py < picker_y + picker_height && py < height; py++) {
-				ui->cells[py * width + preview_x - 1] = (Cell){ .data = "│", .len = 3, .width = 1, .style = border_style };
-			}
-			/* Preview content */
-			CellStyle preview_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = 0 };
-			for (int i = 0; i < vis->picker_preview.line_count && (picker_y + 2 + i) < (picker_y + picker_height - 1); i++) {
-				int py = picker_y + 2 + i;
-				const char *line = vis->picker_preview.lines[i];
-				int px = preview_x;
-				for (int c = 0; line[c] && px < preview_x + preview_width && px < width; c++, px++) {
-					Cell ch = { .data = " ", .len = 1, .width = 1, .style = preview_style };
-					ch.data[0] = line[c];
-					ui->cells[py * width + px] = ch;
-				}
+	/* Preview pane: right panel inside the picker box */
+	if (preview_width > 10 && vis->picker_preview.line_count > 0) {
+		int preview_x = picker_x + list_width + 1;
+		CellStyle preview_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = 0 };
+		CellStyle preview_header_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_BOLD };
+
+		/* Preview header (line under filter, between divider and right border) */
+		int header_row = picker_y + 1;
+		/* Header text: filename */
+		const char *fname = "(preview)";
+		if (vis->picker.filtered_count > 0) {
+			int idx = vis->picker.filtered_indices[vis->picker.selected];
+			const char *full = vis->picker.items[idx];
+			const char *slash = strrchr(full, '/');
+			fname = slash ? slash + 1 : full;
+		}
+		int px = preview_x;
+		for (int i = 0; fname[i] && px < picker_x + picker_width - 1; i++, px++) {
+			Cell c = { .data = " ", .len = 1, .width = 1, .style = preview_header_style };
+			c.data[0] = fname[i];
+			ui->cells[header_row * width + px] = c;
+		}
+
+		/* Preview content lines */
+		int max_preview_lines = picker_height - 3;
+		for (int i = 0; i < vis->picker_preview.line_count && i < max_preview_lines; i++) {
+			int py = picker_y + 2 + i;
+			if (py < 0 || py >= height) continue;
+			const char *line = vis->picker_preview.lines[i];
+			/* Strip trailing newline */
+			size_t linelen = strlen(line);
+			if (linelen > 0 && line[linelen-1] == '\n') linelen--;
+			px = preview_x;
+			for (size_t c = 0; c < linelen && px < picker_x + picker_width - 1 && px < width; c++, px++) {
+				Cell ch = { .data = " ", .len = 1, .width = 1, .style = preview_style };
+				ch.data[0] = line[c];
+				ui->cells[py * width + px] = ch;
 			}
 		}
 	}
