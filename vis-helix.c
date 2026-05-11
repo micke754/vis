@@ -954,41 +954,39 @@ static KEY_ACTION_FN(ka_helix_match_bracket)
 		return keys;
 	Text *txt = vis_text(vis);
 	View *view = vis_view(vis);
-	Selection *sel = view_selections_primary_get(view);
-	if (!sel)
-		return keys;
-	size_t pos = view_cursors_pos(sel);
-	size_t match = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", NULL);
-	if (match == pos || match == EPOS) {
-		Iterator it = text_iterator_get(txt, pos);
-		char ch;
-		while (text_iterator_byte_get(&it, &ch)) {
-			switch (ch) {
-			case '(':
-			case ')':
-			case '{':
-			case '}':
-			case '[':
-			case ']':
-			case '<':
-			case '>':
-			case '"':
-			case '\'':
-			case '`':
-				match = text_bracket_match_symbol(txt, it.pos, "(){}[]<>'\"`", NULL);
-				if (match != it.pos && match != EPOS)
-					goto found;
-				break;
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		size_t pos = view_cursors_pos(sel);
+		size_t match = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", NULL);
+		if (match == pos || match == EPOS) {
+			Iterator it = text_iterator_get(txt, pos);
+			char ch;
+			while (text_iterator_byte_get(&it, &ch)) {
+				switch (ch) {
+				case '(':
+				case ')':
+				case '{':
+				case '}':
+				case '[':
+				case ']':
+				case '<':
+				case '>':
+				case '"':
+				case '\'':
+				case '`':
+					match = text_bracket_match_symbol(txt, it.pos, "(){}[]<>'\"`", NULL);
+					if (match != it.pos && match != EPOS)
+						goto found;
+					break;
+				}
+				text_iterator_byte_prev(&it, NULL);
 			}
-			text_iterator_byte_prev(&it, NULL);
 		}
+found:;
+		size_t dest = (match != pos && match != EPOS) ? match : pos;
+		view_selection_clear(sel);
+		if (dest != pos)
+			view_cursors_to(sel, dest);
 	}
-found:
-	if (match == pos || match == EPOS)
-		return keys;
-	/* Collapse to match position, clear selection */
-	view_selection_clear(sel);
-	view_cursors_to(sel, match);
 	vis_draw(vis);
 	return keys;
 }
