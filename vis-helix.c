@@ -1055,6 +1055,52 @@ static KEY_ACTION_FN(ka_helix_goto_word)
 }
 
 /* Helix r: replace selection content with a repeated character */
+/* Helix r: replace selection content with a repeated character - helper */
+static void helix_replace_char_apply(Vis *vis, const char *replacement, size_t replen) {
+	Win *win = vis->win;
+	if (!win) return;
+	Text *txt = vis_text(vis);
+	View *view = &win->view;
+
+	Selection *last = view_selections(view);
+	while (last && last->next)
+		last = last->next;
+	for (Selection *sel = last; sel; sel = sel->prev) {
+		size_t pos = view_cursors_pos(sel);
+		if (pos == EPOS)
+			continue;
+
+		Filerange range;
+		if (sel->anchored) {
+			range = view_selections_get(sel);
+		} else {
+			range.start = pos;
+			range.end = text_char_next(txt, pos);
+		}
+
+		if (!text_range_valid(&range))
+			continue;
+
+		size_t grapheme_count = 0;
+		Iterator it = text_iterator_get(txt, range.start);
+		while (it.pos < range.end && text_iterator_char_next(&it, NULL))
+			grapheme_count++;
+
+		text_delete_range(txt, &range);
+
+		size_t insert_pos = range.start;
+		for (size_t i = 0; i < grapheme_count; i++)
+			text_insert(vis, txt, insert_pos + i * replen, replacement, replen);
+
+		view_selection_clear(sel);
+		view_cursors_to(sel, insert_pos);
+	}
+
+	vis_window_invalidate(win);
+	vis_file_snapshot(vis, win->file);
+	vis_draw(vis);
+}
+
 static KEY_ACTION_FN(ka_helix_replace_char)
 {
 	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
@@ -1076,85 +1122,35 @@ static KEY_ACTION_FN(ka_helix_replace_char)
 		return next;
 
 	size_t replen = strlen(replacement);
-	Win *win = vis->win;
-	if (!win)
-		return next;
-	Text *txt = vis_text(vis);
-	View *view = &win->view;
+	helix_replace_char_apply(vis, replacement, replen);
 
-	/* For each selection, replace its content with the typed character
-	   repeated to match the selection's grapheme count.
-	   If the cursor is not anchored (bare cursor), replace the single
-	   character under cursor.
-	   Process in reverse order to avoid position shifts. */
-	Selection *last_r = view_selections(view);
-	while (last_r && last_r->next)
-		last_r = last_r->next;
-	for (Selection *sel = last_r; sel; sel = sel->prev) {
-		size_t pos = view_cursors_pos(sel);
-		if (pos == EPOS)
-			continue;
+	/* Record for . repeat */
+	vis->helix_repeat.kind = HELIX_REPEAT_REPLACE_CHAR;
+	memcpy(vis->helix_repeat.data, replacement, replen);
+	vis->helix_repeat.data[replen] = '\0';
+	vis->helix_repeat.len = replen;
+	action_reset(&vis->action_prev);
 
-		Filerange range;
-		if (sel->anchored) {
-			range = view_selections_get(sel);
-		} else {
-			range.start = pos;
-			range.end = text_char_next(txt, pos);
-		}
-
-		if (!text_range_valid(&range))
-			continue;
-
-		/* Count graphemes in the selection */
-		size_t grapheme_count = 0;
-		Iterator it = text_iterator_get(txt, range.start);
-		while (it.pos < range.end && text_iterator_char_next(&it, NULL))
-			grapheme_count++;
-
-		/* Delete selection content */
-		text_delete_range(txt, &range);
-
-		/* Insert repeated character */
-		size_t insert_pos = range.start;
-		for (size_t i = 0; i < grapheme_count; i++)
-			text_insert(vis, txt, insert_pos + i * replen, replacement, replen);
-
-		/* Move cursor to start of replaced area */
-		view_selection_clear(sel);
-		view_cursors_to(sel, insert_pos);
-	}
-
-	vis_window_invalidate(win);
-	vis_file_snapshot(vis, win->file);
-	vis_draw(vis);
 	return next;
 }
 
-/* Helix R: replace selection content with yanked text */
-static KEY_ACTION_FN(ka_helix_replace_with_yanked)
-{
-	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
-		return keys;
-
+/* Helix R: replace selection content with yanked text - helper */
+static void helix_replace_with_yanked_apply(Vis *vis) {
 	Win *win = vis->win;
-	if (!win)
-		return keys;
+	if (!win) return;
 	Text *txt = vis_text(vis);
 	View *view = &win->view;
 
 	Register *reg = &vis->registers[VIS_REG_DEFAULT];
 	size_t reg_count = vis_register_count(vis, reg);
-	if (reg_count == 0)
-		return keys;
+	if (reg_count == 0) return;
 
 	bool multiple_cursors = view->selection_count > 1;
 
-	/* Process in reverse order to avoid position shifts from text modifications */
-	Selection *last_R = view_selections(view);
-	while (last_R && last_R->next)
-		last_R = last_R->next;
-	for (Selection *sel = last_R; sel; sel = sel->prev) {
+	Selection *last = view_selections(view);
+	while (last && last->next)
+		last = last->next;
+	for (Selection *sel = last; sel; sel = sel->prev) {
 		size_t pos = view_cursors_pos(sel);
 		if (pos == EPOS)
 			continue;
@@ -1163,14 +1159,12 @@ static KEY_ACTION_FN(ka_helix_replace_with_yanked)
 		if (sel->anchored) {
 			range = view_selections_get(sel);
 		} else {
-			/* Bare cursor: no-op for R, consistent with Helix */
-			continue;
+			continue; /* bare cursor: no-op */
 		}
 
 		if (!text_range_valid(&range))
 			continue;
 
-		/* Determine register slot */
 		size_t slot = multiple_cursors ? view_selections_number(sel) : 0;
 		if (slot >= reg_count)
 			slot = reg_count - 1;
@@ -1180,14 +1174,10 @@ static KEY_ACTION_FN(ka_helix_replace_with_yanked)
 		if (!data || len == 0)
 			continue;
 
-		/* Normalize line endings */
 		size_t insert_pos = range.start;
-
-		/* Delete selection, then insert register content */
 		text_delete_range(txt, &range);
 		text_insert(vis, txt, insert_pos, data, len);
 
-		/* Move cursor to end of inserted text */
 		view_selection_clear(sel);
 		view_cursors_to(sel, insert_pos);
 	}
@@ -1195,6 +1185,20 @@ static KEY_ACTION_FN(ka_helix_replace_with_yanked)
 	vis_window_invalidate(win);
 	vis_file_snapshot(vis, win->file);
 	vis_draw(vis);
+}
+
+static KEY_ACTION_FN(ka_helix_replace_with_yanked)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+
+	helix_replace_with_yanked_apply(vis);
+
+	/* Record for . repeat */
+	vis->helix_repeat.kind = HELIX_REPEAT_REPLACE_WITH_YANKED;
+	vis->helix_repeat.len = 0;
+	action_reset(&vis->action_prev);
+
 	return keys;
 }
 
@@ -1299,5 +1303,26 @@ static KEY_ACTION_FN(ka_helix_goto_viewport)
 	}
 
 	vis_draw(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_helix_repeat)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+
+	switch (vis->helix_repeat.kind) {
+	case HELIX_REPEAT_REPLACE_CHAR:
+		helix_replace_char_apply(vis, vis->helix_repeat.data, vis->helix_repeat.len);
+		break;
+	case HELIX_REPEAT_REPLACE_WITH_YANKED:
+		helix_replace_with_yanked_apply(vis);
+		break;
+	case HELIX_REPEAT_NONE:
+	default:
+		/* Fall back to standard vis repeat for d/c/y/>/<  */
+		vis_repeat(vis);
+		break;
+	}
 	return keys;
 }

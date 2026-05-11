@@ -217,6 +217,11 @@ struct Vis {
 	bool ignorecase;                     /* whether to ignore case when searching */
 	enum VisSelectionSemantics selection_semantics; /* vim or helix selection behavior */
 	bool helix_select;                   /* whether Helix select/extend mode is active */
+	struct {
+		enum { HELIX_REPEAT_NONE, HELIX_REPEAT_REPLACE_CHAR, HELIX_REPEAT_REPLACE_WITH_YANKED } kind;
+		char data[8]; /* replacement char (utf-8) or other small payload */
+		size_t len;   /* length of data */
+	} helix_repeat;
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
 	char *shell;                         /* shell used to launch external commands */
 	Map *cmds;                           /* ":"-commands, used for unique prefix queries */

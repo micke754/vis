@@ -970,6 +970,7 @@ void vis_do(Vis *vis) {
 			if (!a->macro)
 				a->macro = vis->macro_operator;
 			vis->action_prev = *a;
+			vis->helix_repeat.kind = HELIX_REPEAT_NONE;
 		}
 		action_reset(a);
 	}

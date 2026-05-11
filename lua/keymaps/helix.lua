@@ -141,6 +141,7 @@ local normal = {
 	{ "A", "<vis-append-line-end>", "Insert at line end" },
 	{ "o", "<vis-open-line-below>", "Open line below" },
 	{ "O", "<vis-open-line-above>", "Open line above" },
+	{ ".", "<vis-helix-repeat>", "Repeat last change" },
 	{ "r", "<vis-helix-replace-char>", "Replace selection with char" },
 	{ "R", "<vis-helix-replace-with-yanked>", "Replace selection with yanked" },
 	{ "u", "<vis-undo>", "Undo" },
