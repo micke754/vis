@@ -1255,3 +1255,49 @@ static KEY_ACTION_FN(ka_helix_append)
 	vis_motion(vis, VIS_MOVE_NOP);
 	return keys;
 }
+
+
+static KEY_ACTION_FN(ka_helix_goto_viewport)
+{
+	if (vis->selection_semantics != VIS_SELECTION_SEMANTICS_HELIX)
+		return keys;
+	Win *win = vis->win;
+	if (!win)
+		return keys;
+	Text *txt = vis_text(vis);
+	View *view = &win->view;
+	size_t vp_start = view->start;
+	size_t vp_end = view->end;
+	if (vp_start >= text_size(txt))
+		return keys;
+
+	size_t target;
+	if (arg->i == 0) {
+		/* Top of viewport - first non-blank of top line */
+		target = text_line_start(txt, vp_start);
+	} else if (arg->i == 1) {
+		/* Center of viewport - first non-blank of center line */
+		size_t mid = vp_start + (vp_end - vp_start) / 2;
+		target = text_line_start(txt, mid);
+	} else {
+		/* Bottom of viewport - first non-blank of bottom line */
+		target = text_line_start(txt, vp_end);
+	}
+
+	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
+		if (vis->helix_select && sel->anchored) {
+			Filerange r = view_selections_get(sel);
+			if (text_range_valid(&r))
+				r.end = text_char_next(txt, target);
+			else
+				r = text_range_new(target, text_char_next(txt, target));
+			view_selections_set_directed(sel, &r, false);
+		} else {
+			view_cursors_to(sel, target);
+			sel->anchored = false;
+		}
+	}
+
+	vis_draw(vis);
+	return keys;
+}

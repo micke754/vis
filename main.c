@@ -137,6 +137,9 @@ static Vis vis[1];
 	X(ka_helix_replace_with_yanked,       HELIX_REPLACE_WITH_YANKED,         0,                                        "vis-helix-replace-with-yanked",       "Replace selection with yanked text") \
 	X(ka_helix_insert,                   HELIX_INSERT,                      0,                                        "vis-helix-insert",                    "Insert before selection") \
 	X(ka_helix_append,                   HELIX_APPEND,                      0,                                        "vis-helix-append",                    "Append after selection") \
+	X(ka_helix_goto_viewport,             HELIX_GOTO_VIEWPORT_TOP,          .i = 0,                                   "vis-helix-goto-top",                  "Go to top of viewport") \
+	X(ka_helix_goto_viewport,             HELIX_GOTO_VIEWPORT_CENTER,       .i = 1,                                   "vis-helix-goto-center",               "Go to center of viewport") \
+	X(ka_helix_goto_viewport,             HELIX_GOTO_VIEWPORT_BOTTOM,       .i = 2,                                   "vis-helix-goto-bottom",                "Go to bottom of viewport") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \
