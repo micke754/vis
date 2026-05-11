@@ -1,5 +1,6 @@
 #include "vis-core.h"
 #include <dirent.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -124,10 +125,10 @@ static void picker_close(Vis *vis, bool accept) {
 	else
 		vis->mode = &vis_modes[VIS_MODE_NORMAL];
 
-	vis_draw(vis);
-
 	if (on_select && selection)
 		on_select(vis, selection);
+
+	vis_draw(vis);
 }
 
 /* Called when mode is switched away from PICKER externally
@@ -335,45 +336,77 @@ static KEY_ACTION_FN(ka_picker_clear_filter) {
 
 /* File picker callback: open selected file */
 static void picker_on_file_select(Vis *vis, const char *path) {
-	if (!path) return;
-	vis_window_new(vis, path);
+	if (!path || !vis->win) return;
+	vis_window_change_file(vis->win, path);
 }
 
-/* Open file picker */
-void picker_open_files(Vis *vis) {
-	DIR *d = opendir(".");
+/* Recursive helper: collect files from directory tree.
+ * depth=0 means list files/dirs in given dir. depth>0 recurses into subdirs.
+ * prefix is the relative path to prepend (used for recursion). */
+static void picker_collect_files(const char *dirpath, const char *prefix,
+                                  char ***items, int *count, int *capacity,
+                                  int depth) {
+	DIR *d = opendir(dirpath);
 	if (!d) return;
 
+	struct dirent *entry;
+	while ((entry = readdir(d))) {
+		if (entry->d_name[0] == '.') continue;
+		/* Build full relative path */
+		char relpath[4096];
+		if (prefix[0])
+			snprintf(relpath, sizeof(relpath), "%s/%s", prefix, entry->d_name);
+		else
+			snprintf(relpath, sizeof(relpath), "%s", entry->d_name);
+
+		/* Check if this is a directory (use stat for portability) */
+		{
+			char fullpath[4096];
+			struct stat st;
+			snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
+			if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode) && depth > 0) {
+				picker_collect_files(fullpath, relpath, items, count, capacity, depth);
+				continue;
+			}
+		}
+
+		/* Add file to list */
+		if (*count >= *capacity) {
+			*capacity *= 2;
+			*items = realloc(*items, *capacity * sizeof(char*));
+		}
+		(*items)[(*count)++] = strdup(relpath);
+	}
+	closedir(d);
+}
+
+/* Open file picker: recursively list files from current directory.
+ * Shows both files and directories. Directories are expanded inline
+ * (no separate directory entries). Set depth=2 for 2 levels of recursion. */
+void picker_open_files(Vis *vis) {
 	char **items = NULL;
 	int count = 0;
 	int capacity = 128;
 	items = calloc(capacity, sizeof(char*));
 
-	struct dirent *entry;
-	while ((entry = readdir(d))) {
-		if (entry->d_name[0] == '.') continue;
-		if (count >= capacity) {
-			capacity *= 2;
-			items = realloc(items, capacity * sizeof(char*));
-		}
-		items[count++] = strdup(entry->d_name);
-	}
-	closedir(d);
+	/* Collect files recursively (depth=2: current dir + 1 level of subdirs) */
+	picker_collect_files(".", "", &items, &count, &capacity, 2);
 
 	picker_open(vis, items, count, picker_on_file_select);
 }
 
 /* Buffer picker callback: switch to selected buffer */
 static void picker_on_buffer_select(Vis *vis, const char *path) {
-	if (!path) return;
-	/* Find or create a window for this file */
+	if (!path || !vis->win) return;
+	/* Find existing window for this file */
 	for (Win *win = vis->windows; win; win = win->next) {
 		if (win->file && win->file->name && strcmp(win->file->name, path) == 0) {
 			vis->win = win;
 			return;
 		}
 	}
-	vis_window_new(vis, path);
+	/* Not open - load it into the current window */
+	vis_window_change_file(vis->win, path);
 }
 
 /* Open buffer picker: list open buffers */

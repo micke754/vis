@@ -77,27 +77,39 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 
 ## In Progress
 
-### File picker (Phase 1 complete)
+### File picker (complete ✅)
 - VIS_MODE_PICKER added to mode enum
 - Overlay UI drawn via Cell buffer after window rendering
-- Real-time substring filter
-- Arrow keys / Ctrl-n/Ctrl-p navigation
+- Fzy-style fuzzy matching with consecutive/word-boundary/start bonuses
+- Real-time filter (printable chars append, Backspace/Ctrl-w/Ctrl-u edit)
+- Arrow keys / Ctrl-n/Ctrl-p / j/k navigation
 - Enter to select, Escape to cancel
-- Ctrl-u clear filter, Ctrl-w delete word, Backspace
-- `<Space>f` opens file picker (current directory)
-- File listing via opendir/readdir
-- Basic test: mode registration and regression
+- File picker (`<Space>f`): recursive directory listing (depth=2)
+- Buffer picker (`<Space>b`): list open files, switches or opens in current window
+- Preview pane: shows first 32 lines of selected file
+- Literal-space bindings (` f` / ` b`) for physical keypress fixed
+- `vis_picker_leave` cleanup callback for external mode switches
+- Tests: mode registration, `<Space>f` alias, literal ` f`, regression
 
-## Not Yet Started
+## Next Priorities (ordered)
 
+### 1. Picker polish (current)
+- [x] Fix visual artifacts: redraw AFTER on_select callback
+- [x] File picker: use `vis_window_change_file` instead of `vis_window_new` (prevent splits)
+- [x] Buffer picker: use `vis_window_change_file` fallback instead of `vis_window_new`
+- [x] Recursive directory search (depth=2) with `stat()` for portability
+- [ ] Handle absolute/relative path resolution in buffer picker lookup
+- [ ] Show file icons or type indicators
+
+### 2. Keymap profile segfault
+- [ ] Investigate crash in `keymap-profile.lua` test
+- [ ] Fix split-window profile lifecycle (WIN_OPEN handler)
+
+### 3. Backlog
 - `. ` repeat Phase 2: selection+operator (`wd.`)
 - `. ` repeat Phase 3: surround/textobjects
-- Picker Phase 2: fuzzy matching (fzy algorithm)
-- Picker Phase 3: preview pane
-- Picker Phase 4: buffer picker (`<Space>b`), other backends
 - View mode: `V` line-select, `Ctrl-v` block-select
 - Selection-content rotation (`Alt-(`/`Alt-)`)
-- Split-window/profile lifecycle segfault
 
 ## Test Suites
 All in `test/lua/`:
