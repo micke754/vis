@@ -3396,6 +3396,7 @@ static void vis_lua_init(Vis *vis)
 		{ VIS_MODE_VISUAL_LINE,      "VISUAL_LINE"      },
 		{ VIS_MODE_INSERT,           "INSERT"           },
 		{ VIS_MODE_REPLACE,          "REPLACE"          },
+		{ VIS_MODE_PICKER,            "PICKER"           },
 	};
 	for (size_t i = 0; i < LENGTH(modes); i++) {
 		lua_pushinteger(L, modes[i].id);

@@ -19,6 +19,7 @@
 #include "vis-modes.c"
 #include "vis-motions.c"
 #include "vis-helix.c"
+#include "vis-picker.c"
 #include "vis-operators.c"
 #include "vis-prompt.c"
 #include "vis-registers.c"

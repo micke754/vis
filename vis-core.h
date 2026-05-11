@@ -222,6 +222,21 @@ struct Vis {
 		char data[8]; /* replacement char (utf-8) or other small payload */
 		size_t len;   /* length of data */
 	} helix_repeat;
+	struct {
+		bool active;
+		char filter[256];
+		size_t filter_len;
+		int selected;
+		int scroll_offset;
+		char **items;
+		int item_count;
+		char **filtered;
+		int *filtered_indices; /* maps filtered index to items index */
+		int filtered_count;
+		void (*on_select)(Vis*, const char*);
+		Win *saved_win;
+		Mode *saved_mode;
+	} picker;
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
 	char *shell;                         /* shell used to launch external commands */
 	Map *cmds;                           /* ":"-commands, used for unique prefix queries */
@@ -349,5 +364,13 @@ VIS_INTERNAL bool register_slot_put_range(Vis*, Register*, size_t slot, Text*, F
 
 VIS_INTERNAL size_t vis_register_count(Vis*, Register*);
 VIS_INTERNAL bool register_resize(Register*, size_t count);
+
+
+/* Picker */
+void vis_picker_input(Vis *vis, const char *data, size_t len);
+void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, const char*));
+void picker_refilter(Vis *vis);
+void picker_draw(Vis *vis);
+void picker_open_files(Vis *vis);
 
 #endif

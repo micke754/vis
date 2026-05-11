@@ -370,6 +370,7 @@ enum VisMode {
 	VIS_MODE_VISUAL_LINE, /**< Sub mode of `VIS_MODE_VISUAL`. */
 	VIS_MODE_INSERT,
 	VIS_MODE_REPLACE, /**< Sub mode of `VIS_MODE_INSERT`. */
+	VIS_MODE_PICKER,
 	VIS_MODE_INVALID,
 };
 

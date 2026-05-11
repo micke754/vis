@@ -145,6 +145,14 @@ static Vis vis[1];
 	X(ka_helix_increment,                 HELIX_DECREMENT,                  .i = -1,                                  "vis-helix-decrement",                  "Decrement number under cursor") \
 	X(ka_helix_openline,                  HELIX_OPEN_LINE_BELOW,            .i = +1,                                  "vis-helix-open-below",                 "Open line below (Helix)") \
 	X(ka_helix_openline,                  HELIX_OPEN_LINE_ABOVE,            .i = -1,                                  "vis-helix-open-above",                  "Open line above (Helix)") \
+	X(ka_picker_down,                    PICKER_DOWN,                      0,                                        "vis-picker-down",                      "Picker move down") \
+	X(ka_picker_up,                      PICKER_UP,                        0,                                        "vis-picker-up",                        "Picker move up") \
+	X(ka_picker_accept,                  PICKER_ACCEPT,                    0,                                        "vis-picker-accept",                    "Picker accept selection") \
+	X(ka_picker_cancel,                  PICKER_CANCEL,                    0,                                        "vis-picker-cancel",                    "Picker cancel") \
+	X(ka_picker_backspace,               PICKER_BACKSPACE,                 0,                                        "vis-picker-backspace",                 "Picker delete filter char") \
+	X(ka_picker_delete_word,             PICKER_DELETE_WORD,               0,                                        "vis-picker-delete-word",               "Picker delete filter word") \
+	X(ka_picker_clear_filter,           PICKER_CLEAR_FILTER,              0,                                        "vis-picker-clear-filter",              "Picker clear filter") \
+	X(ka_picker_files,                   PICKER_FILES,                     0,                                        "vis-picker-files",                     "Open file picker") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \

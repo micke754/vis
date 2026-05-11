@@ -143,6 +143,7 @@ local normal = {
 	{ "O", "<vis-helix-open-above>", "Open line above" },
 	{ ".", "<vis-helix-repeat>", "Repeat last change" },
 	{ "<C-a>", "<vis-helix-increment>", "Increment number" },
+	{ "<Space>f", "<vis-picker-files>", "Open file picker" },
 	{ "<C-x>", "<vis-helix-decrement>", "Decrement number" },
 	{ "r", "<vis-helix-replace-char>", "Replace selection with char" },
 	{ "R", "<vis-helix-replace-with-yanked>", "Replace selection with yanked" },

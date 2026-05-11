@@ -289,5 +289,12 @@ Mode vis_modes[] = {
 		.idle = vis_mode_insert_idle,
 		.idle_timeout = 3,
 	},
+	[VIS_MODE_PICKER] = {
+		.id = VIS_MODE_PICKER,
+		.name = "PICKER",
+		.status = "PICKER",
+		.help = "File picker",
+		.input = vis_picker_input,
+	},
 };
 
