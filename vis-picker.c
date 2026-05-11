@@ -414,6 +414,34 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
 	closedir(d);
 }
 
+/* qsort comparison for file listing:
+ * 1. Files in root directory (no '/') come first
+ * 2. Within same depth, sort case-insensitively alphabetically */
+static int picker_cmp_file(const void *a, const void *b) {
+	const char *pa = *(const char **)a;
+	const char *pb = *(const char **)b;
+
+	/* Count path separators (directory depth) */
+	int da = 0, db = 0;
+	for (const char *s = pa; *s; s++) if (*s == '/') da++;
+	for (const char *s = pb; *s; s++) if (*s == '/') db++;
+	if (da != db) return da - db;
+
+	/* Same depth: compare basename (after last '/') */
+	const char *ba = strrchr(pa, '/'); ba = ba ? ba + 1 : pa;
+	const char *bb = strrchr(pb, '/'); bb = bb ? bb + 1 : pb;
+	return strcasecmp(ba, bb);
+}
+
+/* qsort comparison for buffer listing: sort alphabetically by basename */
+static int picker_cmp_buffer(const void *a, const void *b) {
+	const char *pa = *(const char **)a;
+	const char *pb = *(const char **)b;
+	const char *ba = strrchr(pa, '/'); ba = ba ? ba + 1 : pa;
+	const char *bb = strrchr(pb, '/'); bb = bb ? bb + 1 : pb;
+	return strcasecmp(ba, bb);
+}
+
 /* Open file picker: recursively list files from current directory.
  * Shows both files and directories. Directories are expanded inline
  * (no separate directory entries). Set depth=2 for 2 levels of recursion. */
@@ -425,6 +453,9 @@ void picker_open_files(Vis *vis) {
 
 	/* Collect files recursively (depth=2: current dir + 1 level of subdirs) */
 	picker_collect_files(".", "", &items, &count, &capacity, 2);
+
+	/* Sort: current-dir files first, then subdir files, all alphabetical */
+	qsort(items, count, sizeof(char*), picker_cmp_file);
 
 	picker_open(vis, items, count, picker_on_file_select);
 }
@@ -461,6 +492,8 @@ void picker_open_buffers(Vis *vis) {
 		if (f->internal) continue;
 		items[i++] = strdup(f->name ? f->name : "[unnamed]");
 	}
+	/* Sort alphabetically by filename */
+	qsort(items, count, sizeof(char*), picker_cmp_buffer);
 	picker_open(vis, items, count, picker_on_buffer_select);
 }
 
