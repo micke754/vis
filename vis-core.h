@@ -222,6 +222,7 @@ struct Vis {
 		char data[8]; /* replacement char (utf-8) or other small payload */
 		size_t len;   /* length of data */
 	} helix_repeat;
+	bool picker_open_at_start;
 	struct {
 		bool active;
 		char filter[256];

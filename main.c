@@ -1,4 +1,5 @@
 #include "vis.c"
+#include <sys/stat.h>
 
 static Vis vis[1];
 
@@ -1445,8 +1446,22 @@ int main(int argc, char *argv[])
 		} else if (argv[i][0] == '+' && !end_of_options) {
 			cmd = argv[i] + (argv[i][1] == '/' || argv[i][1] == '?');
 			continue;
-		} else if (!vis_window_new(vis, argv[i])) {
-			vis_die(vis, "Can not load '%s': %s\n", argv[i], strerror(errno));
+		} else {
+			/* Check if argument is a directory - open file picker instead */
+			struct stat st;
+			bool is_dir = (stat(argv[i], &st) == 0 && S_ISDIR(st.st_mode));
+			if (is_dir) {
+				/* cd to the directory and open empty buffer with picker */
+				if (chdir(argv[i]) != 0) {
+					vis_die(vis, "Can not change to directory '%s': %s\n", argv[i], strerror(errno));
+				}
+				if (!vis_window_new(vis, NULL))
+					vis_die(vis, "Can not create empty buffer\n");
+				/* Open file picker directly (must happen after VIS_EVENT_START) */
+				vis->picker_open_at_start = true;
+			} else if (!vis_window_new(vis, argv[i])) {
+				vis_die(vis, "Can not load '%s': %s\n", argv[i], strerror(errno));
+			}
 		}
 		win_created = true;
 		if (cmd) {

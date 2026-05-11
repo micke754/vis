@@ -1384,6 +1384,12 @@ int vis_run(Vis *vis) {
 
 	vis_event_emit(vis, VIS_EVENT_START);
 
+	/* If 'vis <directory>' was used, open the file picker */
+	if (vis->picker_open_at_start) {
+		vis->picker_open_at_start = false;
+		vis_keys_feed(vis, "<vis-picker-files>");
+	}
+
 	struct timespec idle = { .tv_nsec = 0 }, *timeout = NULL;
 
 	sigset_t emptyset;
