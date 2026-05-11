@@ -96,10 +96,10 @@ static void picker_close(Vis *vis, bool accept) {
 	if (!vis->picker.active)
 		return;
 
-	const char *selection = NULL;
+	char *selection = NULL;
 	if (accept && vis->picker.filtered_count > 0) {
 		int idx = vis->picker.filtered_indices[vis->picker.selected];
-		selection = vis->picker.items[idx];
+		selection = strdup(vis->picker.items[idx]);
 	}
 
 	void (*on_select)(Vis*, const char*) = vis->picker.on_select;
@@ -127,6 +127,8 @@ static void picker_close(Vis *vis, bool accept) {
 
 	if (on_select && selection)
 		on_select(vis, selection);
+
+	free(selection);
 
 	vis_draw(vis);
 }
@@ -365,7 +367,7 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
 			struct stat st;
 			snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
 			if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode) && depth > 0) {
-				picker_collect_files(fullpath, relpath, items, count, capacity, depth);
+				picker_collect_files(fullpath, relpath, items, count, capacity, depth - 1);
 				continue;
 			}
 		}

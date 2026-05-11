@@ -78,6 +78,18 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 ## In Progress
 
 ### File picker (complete ✅)
+- VIS_MODE_PICKER added to mode enum with `.leave = vis_picker_leave`
+- Overlay UI drawn via Cell buffer after window rendering
+- Fzy-style fuzzy matching with consecutive/word-boundary/start bonuses
+- Real-time filter (printable chars append, Backspace/Ctrl-w/Ctrl-u edit)
+- Arrow keys / Ctrl-n/Ctrl-p / j/k navigation; Enter/Escape accept/cancel
+- File picker (`<Space>f`): recursive directory listing (depth=2) via opendir/readdir + stat()
+- Buffer picker (`<Space>b`): lists open files, switches or opens in current window
+- Preview pane: shows first 32 lines of selected file, cached by path
+- Fixed: literal-space bindings (` f` / ` b`) for physical keypress
+- Fixed: use-after-free of selection string (now strdup'd before item cleanup)
+- Fixed: vis_window_change_file replaces current buffer (no unwanted splits)
+- Fixed: redraw AFTER on_select callback (no visual artifacts)
 - VIS_MODE_PICKER added to mode enum
 - Overlay UI drawn via Cell buffer after window rendering
 - Fzy-style fuzzy matching with consecutive/word-boundary/start bonuses
@@ -93,16 +105,20 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 
 ## Next Priorities (ordered)
 
-### 1. Picker polish (current)
+### 1. Picker polish ✅ COMPLETE
 - [x] Fix visual artifacts: redraw AFTER on_select callback
 - [x] File picker: use `vis_window_change_file` instead of `vis_window_new` (prevent splits)
 - [x] Buffer picker: use `vis_window_change_file` fallback instead of `vis_window_new`
 - [x] Recursive directory search (depth=2) with `stat()` for portability
-- [ ] Handle absolute/relative path resolution in buffer picker lookup
-- [ ] Show file icons or type indicators
+- [x] Fix use-after-free: strdup selection before freeing items (was opening blank files)
+- [x] Fix depth decrement in recursive call (prevents infinite walk)
 
 ### 2. Keymap profile segfault
-- [ ] Investigate crash in `keymap-profile.lua` test
+- [ ] Investigate crash/hang in `keymap-profile.lua` test (pre-existing)
+  - Test hangs when run directly under timeout
+  - Segfaults through test runner (test.sh)
+  - `keymap-helix-profile` test passes - Helix keymap is fine
+  - Likely `vis:exit()` inside WIN_OPEN event handler conflict
 - [ ] Fix split-window profile lifecycle (WIN_OPEN handler)
 
 ### 3. Backlog
