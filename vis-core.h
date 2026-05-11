@@ -376,6 +376,7 @@ void vis_picker_input(Vis *vis, const char *data, size_t len);
 void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, const char*));
 void picker_refilter(Vis *vis);
 void picker_draw(Vis *vis);
+void vis_picker_leave(Vis *vis, Mode *old_mode);
 void picker_open_files(Vis *vis);
 
 #endif

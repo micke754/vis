@@ -130,6 +130,16 @@ static void picker_close(Vis *vis, bool accept) {
 		on_select(vis, selection);
 }
 
+/* Called when mode is switched away from PICKER externally
+ * (e.g. :set keymap, or any other mode switch bypassing picker_close).
+ * Cleans up stale picker state to prevent state leaks between tests. */
+void vis_picker_leave(Vis *vis, Mode *old_mode) {
+	(void)old_mode;
+	if (!vis->picker.active)
+		return;
+	picker_close(vis, false);
+}
+
 /* Fuzzy match: returns score if needle matches haystack, 0 if no match.
    Higher score = better match. Uses fzy-style scoring. */
 static double picker_fuzzy_score(const char *haystack, const char *needle) {

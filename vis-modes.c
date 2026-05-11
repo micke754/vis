@@ -295,6 +295,8 @@ Mode vis_modes[] = {
 		.status = "PICKER",
 		.help = "File picker",
 		.input = vis_picker_input,
+		.leave = vis_picker_leave,
+		.leave = vis_picker_leave,
 	},
 };
 
