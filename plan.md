@@ -73,6 +73,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - `ms<char>`, `md<char>`, `mr<from><to>` repeat
 - `mi<object>`, `ma<object>` + operator repeat
 - Storage: `HELIX_REPEAT_SURROUND_ADD`, etc. with paired chars
+- Status: deferred. Needs explicit command recording for multi-key surround/textobject actions, not key replay.
 
 ## Completed (since last plan update)
 
@@ -117,7 +118,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 
 ### 3. Backlog
 - `. ` repeat Phase 2 follow-up: non-word selection transforms (`x`, find/search, line selections)
-- `. ` repeat Phase 3: surround/textobjects
+- `. ` repeat Phase 3: surround/textobjects (deferred; needs command recording for multi-key actions)
 - View mode: `V` line-select (mapped), `Ctrl-v` block-select (deferred: no block selection mode in current core)
 - Selection-content rotation (`Alt-(`/`Alt-)`) — mapped to existing selection content rotation actions
 
