@@ -77,7 +77,7 @@ See bottom of this file for the full checklist. Key areas to test after changes:
 - [ ] :set keymap vim / helix — profile switch
 - [ ] Statusline: NOR/SEL/INS
 
-## Picker Feature (Phase 1-3)
+## Picker Feature (implemented, hardening in progress)
 
 ### Architecture
 - `VIS_MODE_PICKER` — new vis mode with `input` callback for filter keystrokes
@@ -112,45 +112,18 @@ See bottom of this file for the full checklist. Key areas to test after changes:
 - Cleaned up on picker close
 
 
-## Picker — Known Issue (NOT WORKING)
+## Picker Current Status
 
-The picker feature was implemented but does not render when activated.
-The root cause is that `<Space>f` → `<vis-picker-files>` key binding
-doesn't trigger the action. Debug output confirmed:
+The original trigger failure is fixed. `<Space>f`, literal ` f`, and
+`vis <directory>` now route to `vis-picker-files`; the picker mode activates and
+draws through `picker_draw()`.
 
-- `picker_draw` is called on every redraw (correct — it's in `ui_draw`)
-- `picker_draw active=0` on every call — picker never activates
-- `ka_picker_files` is never called — the action isn't reached
-- `picker.active = true` is never set
-
-### Diagnosis
-
-The flow should be:
-1. `<Space>` pressed → vis waits for more keys (prefix match)
-2. `f` pressed → `<Space>f` matched as alias → `<vis-picker-files>` inserted
-3. `<vis-picker-files>` parsed as special key → action lookup → `ka_picker_files` called
-4. Action opens picker → mode switches to PICKER → screen redraws with overlay
-
-Step 2-3 is where it fails. The alias mechanism works (other `<Space>*` bindings
-like `<Space>w` work), but `<vis-picker-files>` may not be resolved as a special
-key command. Possible causes:
-
-1. **Action registration order**: Actions in `KEY_ACTION_LIST` might not include
-   PICKER entries when registration happens. Check `main()` registration loop.
-2. **`vis_keys_next` parsing**: `<vis-picker-files>` must be parsed as a single
-   token. The `vis_keys_next` function has special handling for `<vis-` prefix
-   (see `vis.c` line ~1004) but it only matches if `map_get(vis->actions, key)`
-   finds the action. If the action name is wrong, it won't be recognized.
-3. **Map lookup case sensitivity**: Action names might differ in case.
-
-### Recommended Fix Approach
-
-1. Add `fprintf(stderr, "action: %s\\n", start+1)` in `vis_keys_process` at
-   the special key command handler to confirm what string is being looked up.
-2. Add `fprintf(stderr, "action lookup: %s -> %p\\n", name, action)` in
-   `map_get` for the actions map to see if lookup succeeds.
-3. If the lookup fails, the action name string might not match exactly.
-   Compare the string in the alias with the registered action name.
+Current hardening focus:
+- Mode lifecycle and cleanup paths (`picker_open`, `picker_close`, `vis_picker_leave`)
+- Item and preview memory ownership
+- File walking behavior around directories, symlinks, binary files, and empty results
+- Drawing bounds and small-terminal behavior
+- Regression coverage in `test/lua/keymap-helix-picker.lua`
 
 ### Files Involved in Picker
 
@@ -177,9 +150,9 @@ key command. Possible causes:
 - `picker_open`, `picker_close`, `picker_draw` functions
 - All 19 existing test suites still pass
 
-### What Doesn't Work
+### Verification
 
-- The triggering action `<vis-picker-files>` is never called
-- The picker overlay is never shown because `active` never becomes true
-- The mode never switches to PICKER
-
+- `make -j2` passes
+- `keymap-helix-picker.lua` passes
+- all `keymap-helix-*.lua` suites pass
+- `keymap-profile.lua` still segfaults and is tracked separately in `plan.md`

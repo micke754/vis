@@ -53,6 +53,12 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 
 ## In Progress
 
+### Keymap profile segfault
+- `keymap-profile.lua` still segfaults through `test.sh`.
+- Helix-specific suites pass; next focus before repeat backlog.
+
+## Backlog
+
 ### `.` repeat Phase 2 — selection + operator
 - `wd.` should replay "select next word, delete"
 - Requires recording selection transform + operator
@@ -75,9 +81,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - `o` / `O` — clears selections, then opens line
 - `. ` repeat Phase 1 — semantic repeat for `r` and `R`
 
-## In Progress
-
-### File picker (complete ✅)
+## Picker Feature (complete, hardening in progress)
 - VIS_MODE_PICKER added to mode enum with `.leave = vis_picker_leave`
 - Overlay UI drawn via Cell buffer after window rendering
 - Fzy-style fuzzy matching with consecutive/word-boundary/start bonuses
@@ -90,28 +94,19 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - Fixed: use-after-free of selection string (now strdup'd before item cleanup)
 - Fixed: vis_window_change_file replaces current buffer (no unwanted splits)
 - Fixed: redraw AFTER on_select callback (no visual artifacts)
-- VIS_MODE_PICKER added to mode enum
-- Overlay UI drawn via Cell buffer after window rendering
-- Fzy-style fuzzy matching with consecutive/word-boundary/start bonuses
-- Real-time filter (printable chars append, Backspace/Ctrl-w/Ctrl-u edit)
-- Arrow keys / Ctrl-n/Ctrl-p / j/k navigation
-- Enter to select, Escape to cancel
-- File picker (`<Space>f`): recursive directory listing (depth=2)
-- Buffer picker (`<Space>b`): list open files, switches or opens in current window
-- Preview pane: shows first 32 lines of selected file
-- Literal-space bindings (` f` / ` b`) for physical keypress fixed
 - `vis_picker_leave` cleanup callback for external mode switches
 - Tests: mode registration, `<Space>f` alias, literal ` f`, regression
 
 ## Next Priorities (ordered)
 
-### 1. Picker polish ✅ COMPLETE
+### 1. Picker polish ✅ COMPLETE / hardening active
 - [x] Fix visual artifacts: redraw AFTER on_select callback
 - [x] File picker: use `vis_window_change_file` instead of `vis_window_new` (prevent splits)
 - [x] Buffer picker: use `vis_window_change_file` fallback instead of `vis_window_new`
 - [x] Recursive directory search (depth=2) with `stat()` for portability
 - [x] Fix use-after-free: strdup selection before freeing items (was opening blank files)
 - [x] Fix depth decrement in recursive call (prevents infinite walk)
+- [x] Audit and fix remaining picker lifecycle/memory/file-walk risks
 
 ### 2. Keymap profile segfault
 - [ ] Investigate crash/hang in `keymap-profile.lua` test (pre-existing)

@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /* Picker mode input handler: printable chars go to filter */
 void vis_picker_input(Vis *vis, const char *data, size_t len) {
@@ -63,7 +64,8 @@ static bool picker_bindings_init(Vis *vis) {
 
 /* Open the picker with a list of items */
 void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, const char*)) {
-	picker_bindings_init(vis);
+	if (!picker_bindings_init(vis))
+		goto err;
 
 	vis->picker.active = true;
 	vis->picker.filter[0] = '\0';
@@ -76,8 +78,10 @@ void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, cons
 	vis->picker.saved_win = vis->win;
 	vis->picker.saved_mode = vis->mode;
 
-	vis->picker.filtered = calloc(count, sizeof(char*));
-	vis->picker.filtered_indices = calloc(count, sizeof(int));
+	vis->picker.filtered = count > 0 ? calloc(count, sizeof(char*)) : NULL;
+	vis->picker.filtered_indices = count > 0 ? calloc(count, sizeof(int)) : NULL;
+	if (count > 0 && (!vis->picker.filtered || !vis->picker.filtered_indices))
+		goto err;
 	vis->picker.filtered_count = count;
 
 	for (int i = 0; i < count; i++) {
@@ -89,6 +93,15 @@ void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, cons
 	   Just set the mode directly, like prompt_restore does. */
 	vis->mode = &vis_modes[VIS_MODE_PICKER];
 	vis_draw(vis);
+	return;
+
+err:
+	for (int i = 0; i < count; i++)
+		free(items[i]);
+	free(items);
+	free(vis->picker.filtered);
+	free(vis->picker.filtered_indices);
+	memset(&vis->picker, 0, sizeof(vis->picker));
 }
 
 /* Close the picker, optionally accepting the selection */
@@ -385,15 +398,19 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
 		else
 			snprintf(relpath, sizeof(relpath), "%s", entry->d_name);
 
-		/* Check if this is a directory (use stat for portability) */
+		/* Check file type. Do not follow symlinked directories while walking. */
 		{
 			char fullpath[4096];
 			struct stat st;
 			snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
-			if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode) && depth > 0) {
+			if (lstat(fullpath, &st) != 0)
+				continue;
+			if (S_ISDIR(st.st_mode) && depth > 0) {
 				picker_collect_files(fullpath, relpath, items, count, capacity, depth - 1);
 				continue;
 			}
+			if (!S_ISREG(st.st_mode))
+				continue;
 		}
 
 		/* Skip binary files (executables, object files, etc.) */
@@ -407,9 +424,17 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
 		/* Add file to list */
 		if (*count >= *capacity) {
 			*capacity *= 2;
-			*items = realloc(*items, *capacity * sizeof(char*));
+			char **new_items = realloc(*items, *capacity * sizeof(char*));
+			if (!new_items) {
+				closedir(d);
+				return;
+			}
+			*items = new_items;
 		}
-		(*items)[(*count)++] = strdup(relpath);
+		char *item = strdup(relpath);
+		if (!item)
+			continue;
+		(*items)[(*count)++] = item;
 	}
 	closedir(d);
 }
@@ -450,6 +475,8 @@ void picker_open_files(Vis *vis) {
 	int count = 0;
 	int capacity = 128;
 	items = calloc(capacity, sizeof(char*));
+	if (!items)
+		return;
 
 	/* Collect files recursively (depth=2: current dir + 1 level of subdirs) */
 	picker_collect_files(".", "", &items, &count, &capacity, 2);
@@ -482,15 +509,24 @@ void picker_open_buffers(Vis *vis) {
 	/* Count non-internal files */
 	int count = 0;
 	for (File *f = vis->files; f; f = f->next) {
-		if (!f->internal) count++;
+		if (!f->internal && f->name) count++;
 	}
 	if (count == 0) return;
 
 	char **items = calloc(count, sizeof(char*));
+	if (!items)
+		return;
 	int i = 0;
 	for (File *f = vis->files; f; f = f->next) {
-		if (f->internal) continue;
-		items[i++] = strdup(f->name ? f->name : "[unnamed]");
+		if (f->internal || !f->name) continue;
+		items[i] = strdup(f->name);
+		if (items[i])
+			i++;
+	}
+	count = i;
+	if (count == 0) {
+		free(items);
+		return;
 	}
 	/* Sort alphabetically by filename */
 	qsort(items, count, sizeof(char*), picker_cmp_buffer);
