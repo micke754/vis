@@ -410,5 +410,6 @@ void vis_picker_leave(Vis *vis, Mode *old_mode);
 void picker_open_files(Vis *vis);
 void picker_open_files_current(Vis *vis);
 void picker_open_jumplist(Vis *vis);
+void picker_open_changed(Vis *vis);
 
 #endif

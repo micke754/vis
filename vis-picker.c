@@ -746,6 +746,34 @@ void picker_open_buffers(Vis *vis) {
 	picker_open(vis, items, count, picker_on_buffer_select);
 }
 
+void picker_open_changed(Vis *vis) {
+	int count = 0;
+	for (File *f = vis->files; f; f = f->next) {
+		if (!f->internal && f->name && text_modified(f->text))
+			count++;
+	}
+	if (count == 0)
+		return;
+
+	PickerItem *items = calloc(count, sizeof(PickerItem));
+	if (!items)
+		return;
+	int i = 0;
+	for (File *f = vis->files; f; f = f->next) {
+		if (f->internal || !f->name || !text_modified(f->text))
+			continue;
+		if (picker_item_set(&items[i], PICKER_ITEM_BUFFER, f->name, f->name))
+			i++;
+	}
+	count = i;
+	if (count == 0) {
+		picker_items_free(items, count);
+		return;
+	}
+	qsort(items, count, sizeof(PickerItem), picker_cmp_buffer);
+	picker_open(vis, items, count, picker_on_buffer_select);
+}
+
 static KEY_ACTION_FN(ka_picker_files) {
 	if (vis->picker.active) return keys;
 	picker_open_files(vis);
@@ -767,6 +795,12 @@ static KEY_ACTION_FN(ka_picker_buffers) {
 static KEY_ACTION_FN(ka_picker_jumplist) {
 	if (vis->picker.active) return keys;
 	picker_open_jumplist(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_changed) {
+	if (vis->picker.active) return keys;
+	picker_open_changed(vis);
 	return keys;
 }
 
