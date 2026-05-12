@@ -80,6 +80,24 @@
           packages = nativeInputs ++ runtimeInputs ++ (with pkgs; [
             clang
           ]);
+
+          shellHook = ''
+            mkdir -p .nix-dev/bin
+            cat > .nix-dev/bin/vis-dev <<'EOF'
+#!/usr/bin/env sh
+set -eu
+
+repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+export VIS_PATH="$repo/lua"
+export LUA_PATH="$repo/lua/?.lua;$repo/lua/?/init.lua;${lpeg}/share/lua/${luaVersion}/?.lua;;"
+export LUA_CPATH="${lpeg}/lib/lua/${luaVersion}/?.so;${lpeg}/lib/lua/${luaVersion}/?.dylib;;"
+export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeInputs}:$repo/dependency/install/usr/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+exec "$repo/vis" "$@"
+EOF
+            chmod +x .nix-dev/bin/vis-dev
+            export PATH="$PWD/.nix-dev/bin:$PATH"
+          '';
         };
       });
 }

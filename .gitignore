@@ -17,3 +17,4 @@ package.json
 *.gcov
 *.html
 *.pi
+.nix-dev/
