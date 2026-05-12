@@ -421,6 +421,7 @@ bool vis_window_change_file(Win *win, const char* filename) {
 		file_free(win->vis, win->file);
 	win->file = file;
 	view_reload(&win->view, file->text);
+	vis_event_emit(win->vis, VIS_EVENT_WIN_OPEN, win);
 	return true;
 }
 
