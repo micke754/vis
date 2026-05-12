@@ -574,6 +574,8 @@ static KEY_ACTION_FN(ka_selections_remove_column_except)
 static KEY_ACTION_FN(ka_wscroll)
 {
 	View *view = vis_view(vis);
+	if (!vis->mode->visual && !vis->helix_select && view->selection->anchored)
+		view_selection_clear(view->selection);
 	int count = vis->action.count;
 	switch (arg->i) {
 	case -PAGE:
@@ -604,6 +606,8 @@ static KEY_ACTION_FN(ka_wscroll)
 static KEY_ACTION_FN(ka_wslide)
 {
 	View *view = vis_view(vis);
+	if (!vis->mode->visual && !vis->helix_select && view->selection->anchored)
+		view_selection_clear(view->selection);
 	int count = vis->action.count;
 	if (count == VIS_COUNT_UNKNOWN)
 		count = arg->i < 0 ? -arg->i : arg->i;
