@@ -76,7 +76,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - Picker item model should be able to represent future LSP diagnostics, document symbols, workspace symbols, references, and global search matches.
 - LSP branch should be able to feed structured items into picker without another picker refactor.
 - Formatter/LSP implementation remains a follow-up branch; current Lua plugin setup stays as bridge only.
-- Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, Helix-like navigation keys, and current/split/vsplit open modes are implemented. Syntax-highlighted preview is not done yet.
+- Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, Helix-like navigation keys, and current/split/vsplit open modes are implemented. Split opens use `Alt-s` / `Alt-v` because terminals commonly reserve `Ctrl-s` / `Ctrl-v`. Syntax-highlighted preview is not done yet.
 
 ## Backlog
 
