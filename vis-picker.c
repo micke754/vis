@@ -23,7 +23,7 @@ void vis_picker_input(Vis *vis, const char *data, size_t len) {
 	vis_draw(vis);
 }
 
-static void picker_preview_load(Vis *vis, const char *path);
+static void picker_preview_load(Vis *vis, const char *path, int line);
 
 static void picker_item_free(PickerItem *item) {
 	if (!item)
@@ -187,7 +187,7 @@ static void picker_close(Vis *vis, bool accept, PickerOpenMode open_mode) {
 	free(vis->picker.filtered);
 
 	/* Clean up preview */
-	picker_preview_load(vis, NULL);
+	picker_preview_load(vis, NULL, 0);
 
 	vis->picker.active = false;
 	vis->picker.items = NULL;
@@ -386,7 +386,7 @@ static KEY_ACTION_FN(ka_picker_toggle_preview) {
 	if (!vis->picker.active) return keys;
 	vis->picker.preview_visible = !vis->picker.preview_visible;
 	if (!vis->picker.preview_visible)
-		picker_preview_load(vis, NULL);
+		picker_preview_load(vis, NULL, 0);
 	vis_draw(vis);
 	return keys;
 }
@@ -724,7 +724,7 @@ static KEY_ACTION_FN(ka_picker_buffers) {
 }
 
 /* Load preview for a file: first N lines */
-static void picker_preview_load(Vis *vis, const char *path) {
+static void picker_preview_load(Vis *vis, const char *path, int line) {
 	/* Free previous preview */
 	for (int i = 0; i < vis->picker_preview.line_count; i++)
 		free(vis->picker_preview.lines[i]);
@@ -732,6 +732,7 @@ static void picker_preview_load(Vis *vis, const char *path) {
 	free(vis->picker_preview.path);
 	vis->picker_preview.lines = NULL;
 	vis->picker_preview.line_count = 0;
+	vis->picker_preview.line = 0;
 	vis->picker_preview.path = NULL;
 
 	if (!path) return;
@@ -743,6 +744,7 @@ static void picker_preview_load(Vis *vis, const char *path) {
 				vis->picker_preview.line_count = 1;
 		}
 		vis->picker_preview.path = strdup(path);
+		vis->picker_preview.line = line;
 		return;
 	}
 
@@ -750,34 +752,48 @@ static void picker_preview_load(Vis *vis, const char *path) {
 	if (!f) return;
 
 	int capacity = 32;
+	int start_line = line > 16 ? line - 15 : 1;
+	int current_line = 1;
 	vis->picker_preview.lines = calloc(capacity, sizeof(char*));
 	char buf[1024];
+	while (current_line < start_line && fgets(buf, sizeof(buf), f))
+		current_line++;
 	while (vis->picker_preview.line_count < capacity && fgets(buf, sizeof(buf), f)) {
 		size_t len = strlen(buf);
 		if (len > 0 && buf[len-1] == '\n') buf[--len] = '\0';
-		vis->picker_preview.lines[vis->picker_preview.line_count++] = strdup(buf);
+		if (line > 0) {
+			char linebuf[1200];
+			snprintf(linebuf, sizeof(linebuf), "%c%5d %s", current_line == line ? '>' : ' ', current_line, buf);
+			vis->picker_preview.lines[vis->picker_preview.line_count++] = strdup(linebuf);
+		} else {
+			vis->picker_preview.lines[vis->picker_preview.line_count++] = strdup(buf);
+		}
+		current_line++;
 	}
 	fclose(f);
 	vis->picker_preview.path = strdup(path);
+	vis->picker_preview.line = line;
 }
 
 /* Check if preview needs updating for current selection */
 static void picker_preview_update(Vis *vis) {
 	if (!vis->picker.active || vis->picker.filtered_count == 0) {
-		picker_preview_load(vis, NULL);
+		picker_preview_load(vis, NULL, 0);
 		return;
 	}
+	PickerItem *item = vis->picker.filtered[vis->picker.selected];
 	const char *path = picker_item_preview_path(vis->picker.filtered[vis->picker.selected]);
 	if (!path) {
-		picker_preview_load(vis, NULL);
+		picker_preview_load(vis, NULL, 0);
 		return;
 	}
 
 	/* Only reload if path changed */
-	if (vis->picker_preview.path && strcmp(vis->picker_preview.path, path) == 0)
+	if (vis->picker_preview.path && strcmp(vis->picker_preview.path, path) == 0 &&
+	    vis->picker_preview.line == item->line)
 		return;
 
-	picker_preview_load(vis, path);
+	picker_preview_load(vis, path, item->line);
 }
 
 /* Draw the picker overlay into the UI cells buffer */

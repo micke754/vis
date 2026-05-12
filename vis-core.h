@@ -269,6 +269,7 @@ struct Vis {
 	struct {
 		char **lines;
 		int line_count;
+		int line;
 		char *path;       /* currently previewed file path */
 	} picker_preview;
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
