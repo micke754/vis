@@ -53,9 +53,8 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 
 ## In Progress
 
-### Keymap profile segfault
-- `keymap-profile.lua` still segfaults through `test.sh`.
-- Helix-specific suites pass; next focus before repeat backlog.
+### `.` repeat Phase 2 — selection + operator
+- Next target: `wd.` should replay "select next word, delete".
 
 ## Backlog
 
@@ -109,12 +108,10 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - [x] Audit and fix remaining picker lifecycle/memory/file-walk risks
 
 ### 2. Keymap profile segfault
-- [ ] Investigate crash/hang in `keymap-profile.lua` test (pre-existing)
-  - Test hangs when run directly under timeout
-  - Segfaults through test runner (test.sh)
-  - `keymap-helix-profile` test passes - Helix keymap is fine
-  - Likely `vis:exit()` inside WIN_OPEN event handler conflict
-- [ ] Fix split-window profile lifecycle (WIN_OPEN handler)
+- [x] Investigate crash/hang in `keymap-profile.lua` test
+  - Root cause: Lua test harness reran the same test file on split-window `WIN_OPEN` and called `vis:exit()` from inside that nested event.
+  - Fixed with one-shot test execution guard in `test/lua/visrc.lua`.
+- [x] Refresh stale `keymap-profile.lua` assertions for current profile semantics
 
 ### 3. Backlog
 - `. ` repeat Phase 2: selection+operator (`wd.`)

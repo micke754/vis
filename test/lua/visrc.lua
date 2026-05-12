@@ -46,6 +46,7 @@ end
 
 
 local msg = ""
+local ran = false
 function describe(s, fn)
 	group = {
 		before_each = function()
@@ -105,11 +106,15 @@ end
 
 
 vis.events.subscribe(vis.events.WIN_OPEN, function(win)
+	if ran then
+		return
+	end
 	-- test.in file passed to vis
 	local in_file = win.file.name
 	if not in_file then
 		return
 	end
+	ran = true
 
 	-- use the corresponding test.lua file
 	lua_file = string.gsub(in_file, '%.in$', '.lua')
