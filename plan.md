@@ -67,7 +67,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - [x] Split file pickers into workspace-root picker and current-directory picker.
 - [x] Add workspace root detection (`.git`, `.jj`, `.helix`, fallback cwd).
 - [x] Add basic ignore rules for large/noisy directories (`.git`, `node_modules`, `target`, `build`, `dist`, `.cache`, `dependency`).
-- [ ] Improve preview: binary/large-file fallback and selected-line centering done; syntax highlighting last.
+- [x] Improve preview: binary/large-file fallback, selected-line centering, and lightweight syntax highlighting done.
 - [x] Add jumplist picker if current state is accessible cleanly. Current-window jump only; no split/vsplit for jumplist items.
 - [x] Add changed-file picker if dirty file state is accessible cleanly. Current-window switch/open only.
 - [ ] Add tests for lifecycle, filtering, navigation bindings, preview toggle, and preserved file/buffer behavior.
@@ -77,7 +77,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - LSP branch should be able to feed structured items into picker without another picker refactor.
 - Formatter/LSP implementation remains a follow-up branch; current Lua plugin setup stays as bridge only.
 - Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, Helix-like navigation keys, and current/split/vsplit open modes are implemented. Split opens use `Alt-s` / `Alt-v` because terminals commonly reserve `Ctrl-s` / `Ctrl-v`. Syntax-highlighted preview is not done yet.
-- Next implementation order: syntax-highlighted preview attempt. If blocked, record status here and move on.
+- Status: lightweight C/Lua/Python preview highlighting is implemented with terminal attributes. Full lexer/theme reuse is deferred to avoid a large Lua/C rendering bridge.
 
 ## Backlog
 

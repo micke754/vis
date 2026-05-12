@@ -5,6 +5,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+typedef enum {
+	PICKER_SYNTAX_TEXT,
+	PICKER_SYNTAX_C,
+	PICKER_SYNTAX_LUA,
+	PICKER_SYNTAX_PYTHON,
+} PickerSyntax;
+
 /* Picker mode input handler: printable chars go to filter */
 void vis_picker_input(Vis *vis, const char *data, size_t len) {
 	if (!vis->picker.active)
@@ -82,6 +89,99 @@ static const char *picker_item_preview_path(const PickerItem *item) {
 	if (item->path)
 		return item->path;
 	return item->label;
+}
+
+static PickerSyntax picker_syntax_for_path(const char *path) {
+	const char *ext = path ? strrchr(path, '.') : NULL;
+	if (!ext)
+		return PICKER_SYNTAX_TEXT;
+	if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0)
+		return PICKER_SYNTAX_C;
+	if (strcmp(ext, ".lua") == 0)
+		return PICKER_SYNTAX_LUA;
+	if (strcmp(ext, ".py") == 0)
+		return PICKER_SYNTAX_PYTHON;
+	return PICKER_SYNTAX_TEXT;
+}
+
+static bool picker_word_char(char c) {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+	       (c >= '0' && c <= '9') || c == '_';
+}
+
+static bool picker_keyword(const char *word, size_t len, PickerSyntax syntax) {
+	static const char *c_keywords[] = {
+		"break", "case", "const", "continue", "default", "else", "enum", "for", "if",
+		"return", "sizeof", "static", "struct", "switch", "typedef", "void", "while",
+	};
+	static const char *lua_keywords[] = {
+		"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if",
+		"in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
+	};
+	static const char *python_keywords[] = {
+		"and", "as", "class", "def", "elif", "else", "False", "for", "from", "if",
+		"import", "in", "is", "None", "not", "or", "return", "True", "while", "with",
+	};
+	const char **keywords = NULL;
+	size_t count = 0;
+	switch (syntax) {
+	case PICKER_SYNTAX_C:
+		keywords = c_keywords;
+		count = LENGTH(c_keywords);
+		break;
+	case PICKER_SYNTAX_LUA:
+		keywords = lua_keywords;
+		count = LENGTH(lua_keywords);
+		break;
+	case PICKER_SYNTAX_PYTHON:
+		keywords = python_keywords;
+		count = LENGTH(python_keywords);
+		break;
+	default:
+		return false;
+	}
+	for (size_t i = 0; i < count; i++) {
+		if (strlen(keywords[i]) == len && strncmp(word, keywords[i], len) == 0)
+			return true;
+	}
+	return false;
+}
+
+static CellStyle picker_preview_style(const char *line, size_t col, PickerSyntax syntax,
+                                      CellStyle base, CellStyle comment, CellStyle string,
+                                      CellStyle keyword) {
+	if (syntax == PICKER_SYNTAX_TEXT)
+		return base;
+	const char *comment_start = NULL;
+	if (syntax == PICKER_SYNTAX_LUA)
+		comment_start = strstr(line, "--");
+	else if (syntax == PICKER_SYNTAX_C)
+		comment_start = strstr(line, "//");
+	else if (syntax == PICKER_SYNTAX_PYTHON)
+		comment_start = strchr(line, '#');
+	if (comment_start && col >= (size_t)(comment_start - line))
+		return comment;
+
+	bool in_single = false, in_double = false;
+	for (size_t i = 0; line[i] && i <= col; i++) {
+		if (i > 0 && line[i - 1] == '\\')
+			continue;
+		if (line[i] == '\'' && !in_double)
+			in_single = !in_single;
+		else if (line[i] == '"' && !in_single)
+			in_double = !in_double;
+	}
+	if (in_single || in_double)
+		return string;
+
+	if (!picker_word_char(line[col]))
+		return base;
+	size_t start = col, end = col;
+	while (start > 0 && picker_word_char(line[start - 1]))
+		start--;
+	while (line[end] && picker_word_char(line[end]))
+		end++;
+	return picker_keyword(line + start, end - start, syntax) ? keyword : base;
 }
 
 /* Set up key bindings for the picker mode (called once) */
@@ -906,6 +1006,10 @@ void picker_draw(Vis *vis) {
 	CellStyle prompt_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_BOLD };
 	CellStyle line_style = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_DIM };
 	CellStyle preview_bg = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = 0 };
+	CellStyle preview_comment = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_DIM };
+	CellStyle preview_string = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_UNDERLINE };
+	CellStyle preview_keyword = { .fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_BOLD };
+	PickerSyntax preview_syntax = picker_syntax_for_path(vis->picker_preview.path);
 
 	Cell sp = { .data = " ", .len = 1, .width = 1, .style = bg };
 
@@ -1001,8 +1105,15 @@ void picker_draw(Vis *vis) {
 				const char *line = vis->picker_preview.lines[i];
 				size_t linelen = strlen(line);
 				if (linelen > 0 && line[linelen-1] == '\n') linelen--;
+				size_t syntax_offset = 0;
+				if (vis->picker_preview.line > 0 && linelen > 7)
+					syntax_offset = 7;
 				for (size_t c = 0; c < linelen && px < width; c++, px++) {
-					Cell ch = { .data = " ", .len = 1, .width = 1, .style = preview_bg };
+					CellStyle style = c < syntax_offset ? preview_bg :
+						picker_preview_style(line + syntax_offset, c - syntax_offset,
+						                     preview_syntax, preview_bg, preview_comment,
+						                     preview_string, preview_keyword);
+					Cell ch = { .data = " ", .len = 1, .width = 1, .style = style };
 					ch.data[0] = line[c];
 					ui->cells[r * width + px] = ch;
 				}
