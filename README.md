@@ -79,6 +79,9 @@ Learn about some differences compared to
 [`vim(1)`](https://github.com/martanne/vis/wiki/Differences-from-Vi(m)),
 respectively.
 
+This fork's Lua formatter and LSP setup is documented in
+[`doc/lua-lsp-formatters.md`](doc/lua-lsp-formatters.md).
+
 [C API](https://vis.readthedocs.io/) as well as [Lua API](http://martanne.github.io/vis/doc/)
 documentation is also available.
 
