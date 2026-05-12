@@ -50,6 +50,12 @@ describe("helix multicursor", function()
 		assert.are.same("bc\ndef\n", content())
 	end)
 
+	it("Alt parentheses rotate selection contents", function()
+		reset("abc\ndef\n")
+		vis:feedkeys("Cw<M-)>,")
+		assert.are.same("def\nabc\n", content())
+	end)
+
 	it("alt comma removes primary selection", function()
 		reset("abc\nabc\n")
 		vis:feedkeys("C<M-,>d")

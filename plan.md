@@ -118,8 +118,8 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 ### 3. Backlog
 - `. ` repeat Phase 2 follow-up: non-word selection transforms (`x`, find/search, line selections)
 - `. ` repeat Phase 3: surround/textobjects
-- View mode: `V` line-select, `Ctrl-v` block-select
-- Selection-content rotation (`Alt-(`/`Alt-)`)
+- View mode: `V` line-select (mapped), `Ctrl-v` block-select (deferred: no block selection mode in current core)
+- Selection-content rotation (`Alt-(`/`Alt-)`) — mapped to existing selection content rotation actions
 
 ## Test Suites
 All in `test/lua/`:
