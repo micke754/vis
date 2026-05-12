@@ -39,9 +39,9 @@ static KEY_ACTION_FN(ka_helix_surround_add)
 		sel = s;
 	for (; sel; sel = view_selections_prev(sel)) {
 		Filerange range = view_selections_get(sel);
-		if (!text_range_valid(&range) || range.start == range.end)
+		if (!text_range_valid(range) || range.start == range.end)
 			range = text_range_new(view_cursors_pos(sel), text_char_next(txt, view_cursors_pos(sel)));
-		if (!text_range_valid(&range))
+		if (!text_range_valid(range))
 			continue;
 		text_insert(vis, txt, range.end, close, sizeof close);
 		text_insert(vis, txt, range.start, open, sizeof open);
@@ -61,14 +61,14 @@ static KEY_ACTION_FN(ka_helix_surround_delete)
 		sel = s;
 	for (; sel; sel = view_selections_prev(sel)) {
 		Filerange selection = view_selections_get(sel);
-		size_t pos = text_range_valid(&selection) ? selection.start : view_cursors_pos(sel);
+		size_t pos = text_range_valid(selection) ? selection.start : view_cursors_pos(sel);
 		Filerange inner = helix_surround_inner(txt, pos, arg->s[0]);
-		if (!text_range_valid(&inner) || inner.start == 0 || inner.end >= text_size(txt))
+		if (!text_range_valid(inner) || inner.start == 0 || inner.end >= text_size(txt))
 			continue;
 		Filerange close = text_range_new(inner.end, text_char_next(txt, inner.end));
 		Filerange open = text_range_new(text_char_prev(txt, inner.start), inner.start);
-		text_delete_range(txt, &close);
-		text_delete_range(txt, &open);
+		text_delete_range(txt, close);
+		text_delete_range(txt, open);
 	}
 	vis_draw(vis);
 	return keys;
@@ -83,13 +83,13 @@ static KEY_ACTION_FN(ka_helix_yank_joined)
 	Buffer joined = {0};
 	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
 		Filerange range = view_selections_get(sel);
-		if (!text_range_valid(&range) || range.start == range.end)
+		if (!text_range_valid(range) || range.start == range.end)
 			range = text_range_new(view_cursors_pos(sel), text_char_next(txt, view_cursors_pos(sel)));
-		if (!text_range_valid(&range))
+		if (!text_range_valid(range))
 			continue;
 		if (buffer_length0(&joined))
 			buffer_append(&joined, "\n", 1);
-		size_t len = text_range_size(&range);
+		size_t len = text_range_size(range);
 		if (len != SIZE_MAX && buffer_grow(&joined, len))
 			joined.len += text_bytes_get(txt, range.start, len, joined.data + joined.len);
 	}
@@ -124,9 +124,9 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	if (!sel)
 		return keys;
 	Filerange range = sel->anchored ? view_selections_get(sel) : text_object_word(txt, view_cursors_pos(sel));
-	if (!text_range_valid(&range))
+	if (!text_range_valid(range))
 		return keys;
-	char *fragment = text_bytes_alloc0(txt, range.start, text_range_size(&range));
+	char *fragment = text_bytes_alloc0(txt, range.start, text_range_size(range));
 	if (!fragment)
 		return keys;
 	Buffer pattern = {0};
@@ -137,7 +137,7 @@ static KEY_ACTION_FN(ka_helix_search_word)
 	}
 	buffer_terminate(&pattern);
 	if (!sel->anchored)
-		view_selections_set_directed(sel, &range, false);
+		view_selections_set_directed(sel, range, false);
 	register_put0(vis, &vis->registers[VIS_REG_SEARCH], buffer_content0(&pattern));
 	vis->search_direction = arg->i > 0 ? VIS_MOVE_SEARCH_REPEAT_FORWARD : VIS_MOVE_SEARCH_REPEAT_BACKWARD;
 	vis_info_show(vis, "Search pattern set: %s", fragment);
@@ -186,7 +186,7 @@ static KEY_ACTION_FN(ka_helix_select_split_lines)
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
 		Filerange range = view_selections_get(sel);
-		if (!text_range_valid(&range)) {
+		if (!text_range_valid(range)) {
 			*da_push(vis, &ranges) = text_range_new(view_cursors_pos(sel), view_cursors_pos(sel));
 			continue;
 		}
@@ -245,7 +245,7 @@ static KEY_ACTION_FN(ka_helix_line_select)
 		}
 		for (int i = 0; i < count; i++)
 			range.end = text_line_next(txt, range.end);
-		view_selections_set(s, &range);
+		view_selections_set(s, range);
 		s->anchored = true;
 	}
 	vis->action.count = VIS_COUNT_UNKNOWN;
@@ -306,17 +306,17 @@ static bool helix_text_object(Vis *vis, const Arg *arg)
 				r = textobj->vis(vis, txt, pos);
 			else if (textobj->user)
 				r = textobj->user(vis, win, textobj->data, pos);
-			if (!text_range_valid(&r))
+			if (!text_range_valid(r))
 				break;
 			if ((textobj->type & TEXTOBJECT_DELIMITED_OUTER) && r.start > 0 && r.end < text_size(txt)) {
 				r.start--;
 				r.end++;
 			}
-			range = (i > 0) ? text_range_union(&range, &r) : r;
+			range = (i > 0) ? text_range_union(range, r) : r;
 			pos = textobj->type & TEXTOBJECT_EXTEND_BACKWARD ? range.start : range.end;
 		}
-		if (text_range_valid(&range))
-			view_selections_set_directed(sel, &range, false);
+		if (text_range_valid(range))
+			view_selections_set_directed(sel, range, false);
 	}
 	vis->action.count = VIS_COUNT_UNKNOWN;
 	vis_window_invalidate(vis->win);
@@ -348,7 +348,7 @@ static bool helix_word_movement(const Movement *movement) {
 
 static Filerange helix_word_at(Text *txt, size_t pos, bool longword) {
 	Filerange word = longword ? text_object_longword(txt, pos) : text_object_word(txt, pos);
-	if (!text_range_valid(&word) && pos > 0)
+	if (!text_range_valid(word) && pos > 0)
 		word = longword ? text_object_longword(txt, text_char_prev(txt, pos)) :
 		                  text_object_word(txt, text_char_prev(txt, pos));
 	return word;
@@ -395,7 +395,7 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 
 	if (sel->anchored) {
 		Filerange current = view_selections_get(sel);
-		if (text_range_valid(&current)) {
+		if (text_range_valid(current)) {
 			if (select_mode)
 				cursor = prev ? current.start : current.end;
 			else if (end_motion)
@@ -409,18 +409,18 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 		   If cursor is inside a word or on whitespace, skip back past it
 		   to the previous word. */
 		Filerange word;
-		if (text_range_valid(&current) && current.start < cursor && cursor < current.end)
+		if (text_range_valid(current) && current.start < cursor && cursor < current.end)
 			word = helix_word_prev(txt, current.start, longword);
 		else
 			word = helix_word_prev(txt, cursor, longword);
 		/* For counts > 1, go back additional words */
-		for (int i = 1; i < count && text_range_valid(&word) && word.start > 0; i++) {
+		for (int i = 1; i < count && text_range_valid(word) && word.start > 0; i++) {
 			Filerange prevword = helix_word_prev(txt, word.start, longword);
-			if (!text_range_valid(&prevword) || prevword.start == word.start)
+			if (!text_range_valid(prevword) || prevword.start == word.start)
 				break;
 			word = prevword;
 		}
-		if (!text_range_valid(&word))
+		if (!text_range_valid(word))
 			return false;
 		start = word.start;
 		end = word.end;
@@ -429,15 +429,15 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 			end = helix_word_include_space(txt, end);
 	} else {
 		Filerange at = helix_word_at(txt, cursor, longword);
-		if (!select_mode && text_range_valid(&at) && cursor == text_char_prev(txt, at.end))
+		if (!select_mode && text_range_valid(at) && cursor == text_char_prev(txt, at.end))
 			cursor = at.end;
 		Filerange word = helix_word_next(txt, cursor, longword);
-		if (!text_range_valid(&word))
+		if (!text_range_valid(word))
 			return false;
 		start = cursor;
 		for (int i = 1; i < count; i++) {
 			Filerange next = helix_word_next(txt, word.end, longword);
-			if (!text_range_valid(&next))
+			if (!text_range_valid(next))
 				break;
 			word = next;
 		}
@@ -450,7 +450,7 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 
 	if (select_mode && sel->anchored) {
 		Filerange current = view_selections_get(sel);
-		if (text_range_valid(&current)) {
+		if (text_range_valid(current)) {
 			if (prev)
 				end = current.end;
 			else
@@ -458,7 +458,7 @@ static bool helix_word_range(Text *txt, Selection *sel, const Movement *movement
 		}
 	}
 	*range = text_range_new(start, end);
-	return text_range_valid(range) && range->start < range->end;
+	return text_range_valid(*range) && range->start < range->end;
 }
 
 static Filerange helix_search_match_range(Vis *vis, Text *txt, size_t pos) {
@@ -488,8 +488,8 @@ static bool helix_search_repeat(Vis *vis, Text *txt, View *view, Selection *sel,
 	size_t size = 0;
 	if (sel->anchored) {
 		Filerange original = view_selections_get(sel);
-		if (text_range_valid(&original))
-			size = text_range_size(&original);
+		if (text_range_valid(original))
+			size = text_range_size(original);
 	}
 	if (!size)
 		register_get(vis, &vis->registers[VIS_REG_SEARCH], &size);
@@ -504,16 +504,16 @@ static bool helix_search_repeat(Vis *vis, Text *txt, View *view, Selection *sel,
 				break;
 		}
 		Filerange match = helix_search_match_range(vis, txt, pos);
-		if (!text_range_valid(&match) && size) {
+		if (!text_range_valid(match) && size) {
 			match.start = pos;
 			match.end = pos;
 			while (size-- && match.end < text_size(txt))
 				match.end = text_char_next(txt, match.end);
 		}
-		if (text_range_valid(&match) && match.start < match.end) {
+		if (text_range_valid(match) && match.start < match.end) {
 			Selection *newsel = view_selections_new_force(view, match.start);
 			if (newsel) {
-				view_selections_set_directed(newsel, &match, false);
+				view_selections_set_directed(newsel, match, false);
 				view_selections_primary_set(newsel);
 			}
 		}
@@ -531,14 +531,14 @@ static bool helix_search_repeat(Vis *vis, Text *txt, View *view, Selection *sel,
 	}
 
 	Filerange match = helix_search_match_range(vis, txt, pos);
-	if (!text_range_valid(&match) && size) {
+	if (!text_range_valid(match) && size) {
 		match.start = pos;
 		match.end = pos;
 		while (size-- && match.end < text_size(txt))
 			match.end = text_char_next(txt, match.end);
 	}
-	if (text_range_valid(&match) && match.start < match.end)
-		view_selections_set_directed(sel, &match, false);
+	if (text_range_valid(match) && match.start < match.end)
+		view_selections_set_directed(sel, match, false);
 	else
 		view_cursors_to(sel, pos);
 	return true;
@@ -561,11 +561,11 @@ static bool helix_find_select(Vis *vis, Text *txt, Selection *sel, const Movemen
 	Filerange range = text_range_new(range_start, range_end);
 	if (vis->helix_select && sel->anchored) {
 		Filerange selection = view_selections_get(sel);
-		if (text_range_valid(&selection))
+		if (text_range_valid(selection))
 			range = backward ? text_range_new(selection.end, range.start) :
 			                 text_range_new(selection.start, range.end);
 	}
-	view_selections_set_directed(sel, &range, backward);
+	view_selections_set_directed(sel, range, backward);
 	return true;
 }
 
@@ -575,14 +575,14 @@ static bool helix_select_extend(Vis *vis, Text *txt, Selection *sel, const Movem
 
 	size_t anchor = text_mark_get(txt, sel->anchor);
 	Filerange selection = view_selections_get(sel);
-	if (text_range_valid(&selection))
+	if (text_range_valid(selection))
 		anchor = selection.start <= pos ? selection.start : selection.end;
 	size_t end = pos;
 	if ((movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
 	     movement == &vis_motions[VIS_MOVE_LONGWORD_END_NEXT]) && anchor < pos)
 		end = text_char_next(txt, pos);
 	Filerange range = text_range_new(anchor, end);
-	view_selections_set_directed(sel, &range, backward);
+	view_selections_set_directed(sel, range, backward);
 	return true;
 }
 
@@ -593,7 +593,7 @@ static bool helix_put_context(Vis *vis, Text *txt, Selection *sel, const Action 
 
 	if (sel->anchored) {
 		Filerange selection = view_selections_get(sel);
-		if (text_range_valid(&selection)) {
+		if (text_range_valid(selection)) {
 			if (action->arg.i == VIS_OP_PUT_BEFORE || action->arg.i == VIS_OP_PUT_BEFORE_END)
 				context->pos = selection.start;
 			else
@@ -657,7 +657,7 @@ static bool helix_visual_word_adjust(Vis *vis, Text *txt, Selection *sel, const 
 
 	*range = view_selections_get(sel);
 	Filerange word = helix_word_object(txt, movement, pos);
-	if (text_range_valid(&word) && !initial_partial && count == 1) {
+	if (text_range_valid(word) && !initial_partial && count == 1) {
 		if (helix_word_start_movement(movement)) {
 			char ch;
 			while (word.end < text_size(txt) && text_byte_get(txt, word.end, &ch) &&
@@ -693,7 +693,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 	size_t anchor = text_mark_get(txt, sel->anchor);
 	if (vis->helix_select && sel->anchored) {
 		Filerange selection = view_selections_get(sel);
-		if (text_range_valid(&selection)) {
+		if (text_range_valid(selection)) {
 			if (word_prev && selection.start < cursor)
 				cursor = selection.start;
 			if (!(selection.start == cursor && selection.end == text_char_next(txt, cursor)))
@@ -702,7 +702,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 	}
 	if (anchor == cursor) {
 		Filerange word = helix_word_object(txt, movement, cursor);
-		if (text_range_valid(&word) && word.start < cursor && cursor < word.end) {
+		if (text_range_valid(word) && word.start < cursor && cursor < word.end) {
 			size_t word_last = text_char_prev(txt, word.end);
 			state->initial_partial = true;
 			if (movement == &vis_motions[VIS_MOVE_WORD_START_NEXT] ||
@@ -724,7 +724,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 	} else if (word_prev && (anchor < cursor || (vis->helix_select && anchor > cursor))) {
 		if (vis->helix_select && anchor > cursor && state->count > 0) {
 			Filerange word = helix_word_object(txt, movement, cursor);
-			if (text_range_valid(&word) && word.start == cursor) {
+			if (text_range_valid(word) && word.start == cursor) {
 				size_t prev = cursor;
 				char ch;
 				while (prev > 0) {
@@ -733,7 +733,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 						break;
 				}
 				Filerange prevword = helix_word_object(txt, movement, prev);
-				if (text_range_valid(&prevword)) {
+				if (text_range_valid(prevword)) {
 					cursor = prevword.start;
 					state->count--;
 				} else {
@@ -750,7 +750,7 @@ static void helix_visual_word_prepare(Vis *vis, Text *txt, Selection *sel, const
 	}
 	if (vis->helix_select && word_next && anchor != cursor) {
 		Filerange word = helix_word_object(txt, movement, cursor);
-		if (text_range_valid(&word)) {
+		if (text_range_valid(word)) {
 			size_t word_last = text_char_prev(txt, word.end);
 			if (word.start == cursor || cursor == word_last) {
 				if (movement == &vis_motions[VIS_MOVE_WORD_END_NEXT] ||
@@ -777,7 +777,7 @@ static size_t helix_word_after_motion(Vis *vis, Text *txt, const Movement *movem
 	    (movement == &vis_motions[VIS_MOVE_WORD_START_PREV] ||
 	     movement == &vis_motions[VIS_MOVE_LONGWORD_START_PREV])) {
 		Filerange word = helix_word_object(txt, movement, pos);
-		if (text_range_valid(&word) && word.start < pos && pos < word.end)
+		if (text_range_valid(word) && word.start < pos && pos < word.end)
 			pos = word.start;
 	}
 	return pos;
@@ -837,9 +837,9 @@ static bool prompt_helix_select_regex(Vis *vis, const char *pattern) {
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
-		if (!text_range_valid(&selection) || selection.start == selection.end)
+		if (!text_range_valid(selection) || selection.start == selection.end)
 			selection = text_range_new(view_cursors_pos(sel), text_char_next(txt, view_cursors_pos(sel)));
-		if (!text_range_valid(&selection))
+		if (!text_range_valid(selection))
 			continue;
 		size_t start = selection.start;
 		while (start < selection.end) {
@@ -883,10 +883,10 @@ static bool prompt_helix_keep_remove_regex(Vis *vis, const char *pattern, bool r
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
-		if (!text_range_valid(&selection) || selection.start == selection.end)
+		if (!text_range_valid(selection) || selection.start == selection.end)
 			selection = text_range_new(view_cursors_pos(sel), text_char_next(txt, view_cursors_pos(sel)));
 		bool matches = false;
-		if (text_range_valid(&selection) && selection.start < selection.end) {
+		if (text_range_valid(selection) && selection.start < selection.end) {
 			RegexMatch match[1];
 			matches = text_search_range_forward(txt, selection.start, selection.end - selection.start, regex, 1, match, 0) == 0 &&
 			          match[0].start != EPOS && match[0].end != EPOS && match[0].start < selection.end;
@@ -922,7 +922,7 @@ static bool prompt_helix_split_regex(Vis *vis, const char *pattern) {
 	FilerangeList ranges = {0};
 	for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
 		Filerange selection = view_selections_get(sel);
-		if (!text_range_valid(&selection) || selection.start == selection.end) {
+		if (!text_range_valid(selection) || selection.start == selection.end) {
 			*da_push(vis, &ranges) = text_range_new(view_cursors_pos(sel), view_cursors_pos(sel));
 			continue;
 		}
@@ -956,7 +956,7 @@ static KEY_ACTION_FN(ka_helix_match_bracket)
 	View *view = vis_view(vis);
 	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
 		size_t pos = view_cursors_pos(sel);
-		size_t match = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", NULL);
+		size_t match = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", text_range_empty());
 		if (match == pos || match == EPOS) {
 			Iterator it = text_iterator_get(txt, pos);
 			char ch;
@@ -973,7 +973,7 @@ static KEY_ACTION_FN(ka_helix_match_bracket)
 				case '"':
 				case '\'':
 				case '`':
-					match = text_bracket_match_symbol(txt, it.pos, "(){}[]<>'\"`", NULL);
+					match = text_bracket_match_symbol(txt, it.pos, "(){}[]<>'\"`", text_range_empty());
 					if (match != it.pos && match != EPOS)
 						goto found;
 					break;
@@ -1000,7 +1000,7 @@ static KEY_ACTION_FN(ka_helix_goto_word)
 	if (!txt || !win)
 		return keys;
 	Filerange vp = VIEW_VIEWPORT_GET(win->view);
-	if (!text_range_valid(&vp))
+	if (!text_range_valid(vp))
 		return keys;
 
 	const char *alphabet = "abcdefghijklmnopqrstuvwxyz";
@@ -1013,11 +1013,11 @@ static KEY_ACTION_FN(ka_helix_goto_word)
 	size_t pos = vp.start;
 	while (pos < vp.end && count < limit) {
 		Filerange word = text_object_word(txt, pos);
-		if (!text_range_valid(&word) || word.start == word.end) {
+		if (!text_range_valid(word) || word.start == word.end) {
 			pos = text_char_next(txt, pos);
 			continue;
 		}
-		size_t size = text_range_size(&word);
+		size_t size = text_range_size(word);
 		if (size < 2) {
 			pos = word.end;
 			continue;
@@ -1078,7 +1078,7 @@ static void helix_replace_char_apply(Vis *vis, const char *replacement, size_t r
 			range.end = text_char_next(txt, pos);
 		}
 
-		if (!text_range_valid(&range))
+		if (!text_range_valid(range))
 			continue;
 
 		size_t grapheme_count = 0;
@@ -1086,7 +1086,7 @@ static void helix_replace_char_apply(Vis *vis, const char *replacement, size_t r
 		while (it.pos < range.end && text_iterator_char_next(&it, NULL))
 			grapheme_count++;
 
-		text_delete_range(txt, &range);
+		text_delete_range(txt, range);
 
 		size_t insert_pos = range.start;
 		for (size_t i = 0; i < grapheme_count; i++)
@@ -1162,7 +1162,7 @@ static void helix_replace_with_yanked_apply(Vis *vis) {
 			continue; /* bare cursor: no-op */
 		}
 
-		if (!text_range_valid(&range))
+		if (!text_range_valid(range))
 			continue;
 
 		size_t slot = multiple_cursors ? view_selections_number(sel) : 0;
@@ -1175,7 +1175,7 @@ static void helix_replace_with_yanked_apply(Vis *vis) {
 			continue;
 
 		size_t insert_pos = range.start;
-		text_delete_range(txt, &range);
+		text_delete_range(txt, range);
 		text_insert(vis, txt, insert_pos, data, len);
 
 		view_selection_clear(sel);
@@ -1216,7 +1216,7 @@ static KEY_ACTION_FN(ka_helix_insert)
 	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
 		if (sel->anchored) {
 			Filerange range = view_selections_get(sel);
-			if (text_range_valid(&range)) {
+			if (text_range_valid(range)) {
 				view_selection_clear(sel);
 				view_cursors_to(sel, range.start);
 			}
@@ -1244,7 +1244,7 @@ static KEY_ACTION_FN(ka_helix_append)
 	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
 		if (sel->anchored) {
 			Filerange range = view_selections_get(sel);
-			if (text_range_valid(&range)) {
+			if (text_range_valid(range)) {
 				view_selection_clear(sel);
 				view_cursors_to(sel, range.end);
 			}
@@ -1291,11 +1291,11 @@ static KEY_ACTION_FN(ka_helix_goto_viewport)
 	for (Selection *sel = view_selections(view); sel; sel = view_selections_next(sel)) {
 		if (vis->helix_select && sel->anchored) {
 			Filerange r = view_selections_get(sel);
-			if (text_range_valid(&r))
+			if (text_range_valid(r))
 				r.end = text_char_next(txt, target);
 			else
 				r = text_range_new(target, text_char_next(txt, target));
-			view_selections_set_directed(sel, &r, false);
+			view_selections_set_directed(sel, r, false);
 		} else {
 			view_cursors_to(sel, target);
 			sel->anchored = false;
@@ -1477,7 +1477,7 @@ static KEY_ACTION_FN(ka_helix_increment)
 		char numbuf[64];
 		snprintf(numbuf, sizeof(numbuf), "%ld", new_value);
 
-		text_delete_range(txt, &range);
+		text_delete_range(txt, range);
 		text_insert(vis, txt, range.start, numbuf, strlen(numbuf));
 		/* Move cursor to end of new number */
 		size_t new_pos = range.start + strlen(numbuf);

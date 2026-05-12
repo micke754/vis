@@ -25,7 +25,7 @@ static size_t search_word_forward(Vis *vis, Text *txt, size_t pos) {
 		pos = text_search_forward(txt, pos, regex);
 		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->mode->visual) {
 			Filerange word = text_object_word(txt, pos);
-			if (text_range_valid(&word))
+			if (text_range_valid(word))
 				pos = text_char_prev(txt, word.end);
 		}
 	}

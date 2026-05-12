@@ -846,7 +846,7 @@ void vis_do(Vis *vis) {
 		    !a->op && a->movement && helix_word_movement(a->movement)) {
 			bool backward = false;
 			if (helix_word_range(txt, sel, a->movement, count, vis->helix_select, &c.range, &backward))
-				view_selections_set_directed(sel, &c.range, backward);
+				view_selections_set_directed(sel, c.range, backward);
 			continue;
 		}
 
@@ -1198,8 +1198,8 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 							Text *txt = vis_text(vis);
 							Filerange word = text_object_word(txt, pos);
 							for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
-								if (text_range_valid(&word)) {
-									view_selections_set_directed(sel, &word, false);
+								if (text_range_valid(word)) {
+									view_selections_set_directed(sel, word, false);
 								} else {
 									view_selection_clear(sel);
 									view_cursors_to(sel, pos);
