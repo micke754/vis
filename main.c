@@ -421,10 +421,10 @@ static KEY_ACTION_FN(ka_selections_clear)
 		bool anchored = primary && primary->anchored;
 		size_t pos = primary ? view_cursors_pos(primary) : view_cursor_get(view);
 		view_selections_dispose_all(view);
-		if (text_range_valid(&keep)) {
+		if (text_range_valid(keep)) {
 			Selection *s = view_selections_new(view, pos);
 			if (s) {
-				view_selections_set(s, &keep);
+				view_selections_set(s, keep);
 				s->anchored = anchored;
 				view_selections_primary_set(s);
 			}
