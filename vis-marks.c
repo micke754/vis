@@ -32,14 +32,6 @@ void vis_mark_normalize(FilerangeList *ranges)
 	}
 }
 
-static bool vis_mark_equal(FilerangeList a, FilerangeList b)
-{
-	bool result = a.count == b.count;
-	for (VisDACount i = 0; result && i < a.count; i++)
-		result = text_range_equal(a.data[i], b.data[i]);
-	return result;
-}
-
 static SelectionRegionList *mark_from(Vis *vis, enum VisMark id)
 {
 	if (vis->win) {
@@ -98,39 +90,150 @@ void vis_mark_set(Vis *vis, Win *win, enum VisMark id, FilerangeList ranges)
 	mark_set(vis, win, mark_from(vis, id), ranges);
 }
 
+static void jumplist_entry_clear(JumpListEntry *entry)
+{
+	free(entry->path);
+	memset(entry, 0, sizeof(*entry));
+}
+
+static bool jumplist_path_equal(const char *a, const char *b)
+{
+	if (!a || !b)
+		return a == b;
+	return strcmp(a, b) == 0;
+}
+
+static bool jumplist_entry_set(JumpListEntry *entry, const char *path, size_t pos, int line, int column, enum VisMode mode)
+{
+	char *path_copy = path ? strdup(path) : NULL;
+	if (path && !path_copy)
+		return false;
+	jumplist_entry_clear(entry);
+	entry->path = path_copy;
+	entry->pos = pos;
+	entry->line = line;
+	entry->column = column;
+	entry->mode = mode;
+	return true;
+}
+
+static bool jumplist_jump(Vis *vis, const JumpListEntry *entry)
+{
+	Win *win = vis->win;
+	if (!win || !entry)
+		return false;
+
+	if (entry->path && (!win->file || !win->file->name || strcmp(win->file->name, entry->path) != 0)) {
+		/* Keep the previous file available as a hidden buffer, matching picker file switches. */
+		if (win->file)
+			win->file->refcount++;
+		if (!vis_window_change_file(win, entry->path))
+			return false;
+	}
+	if (!win->file)
+		return false;
+
+	size_t pos = entry->pos;
+	if (pos == EPOS || pos >= text_size(win->file->text))
+		pos = text_pos_by_lineno(win->file->text, entry->line);
+	if (pos == EPOS)
+		return false;
+	if (entry->column > 0) {
+		size_t colpos = text_line_char_set(win->file->text, text_line_begin(win->file->text, pos), entry->column - 1);
+		if (colpos != EPOS)
+			pos = colpos;
+	}
+
+	vis_mode_switch(vis, entry->mode);
+	view_selections_clear_all(&win->view);
+	view_cursors_to(win->view.selection, pos);
+	view_selection_clear(win->view.selection);
+	return true;
+}
+
+static bool jumplist_save_current(Vis *vis, bool reset_cursor)
+{
+	Win *win = vis->win;
+	if (!win || !win->file)
+		return false;
+
+	Selection *sel = view_selections_primary_get(&win->view);
+	if (!sel)
+		return false;
+	size_t pos = view_cursors_pos(sel);
+	if (pos == EPOS)
+		return false;
+	int line = (int)text_lineno_by_pos(win->file->text, pos);
+	int column = text_line_char_get(win->file->text, pos) + 1;
+	const char *path = win->file->name;
+
+	if (win->jumplist_count) {
+		JumpListEntry *last = &win->jumplist[win->jumplist_count - 1];
+		if (jumplist_path_equal(last->path, path) && last->line == line && last->column == column) {
+			last->pos = pos;
+			last->mode = vis->mode->id;
+			if (reset_cursor)
+				win->jumplist_cursor = win->jumplist_count;
+			return false;
+		}
+	}
+
+	if (win->jumplist_count == VIS_JUMPLIST_COUNT) {
+		jumplist_entry_clear(&win->jumplist[0]);
+		memmove(&win->jumplist[0], &win->jumplist[1], sizeof(win->jumplist[0]) * (VIS_JUMPLIST_COUNT - 1));
+		memset(&win->jumplist[VIS_JUMPLIST_COUNT - 1], 0, sizeof(win->jumplist[VIS_JUMPLIST_COUNT - 1]));
+		win->jumplist_count--;
+		if (win->jumplist_cursor > 0)
+			win->jumplist_cursor--;
+	}
+
+	if (!jumplist_entry_set(&win->jumplist[win->jumplist_count], path, pos, line, column, vis->mode->id))
+		return false;
+	win->jumplist_count++;
+	if (reset_cursor)
+		win->jumplist_cursor = win->jumplist_count;
+	return true;
+}
+
 void vis_jumplist(Vis *vis, int advance)
 {
-	Win  *win  = vis->win;
-	View *view = &win->view;
-	FilerangeList cur = view_selections_get_all(vis, view);
+	Win *win = vis->win;
+	if (!win || !win->file)
+		return;
 
-	size_t cursor = win->mark_set_lru_cursor;
-	win->mark_set_lru_cursor += advance;
-	if (advance < 0)
-		cursor = win->mark_set_lru_cursor;
-	cursor %= VIS_MARK_SET_LRU_COUNT;
+	if (advance) {
+		if (!win->jumplist_count)
+			return;
 
-	SelectionRegionList *next = win->mark_set_lru_regions + cursor;
-	bool done = false;
-	if (next->count) {
-		FilerangeList sel = mark_get(vis, win, next);
-		done = vis_mark_equal(sel, cur);
-		if (advance && !done) {
-			/* NOTE: set cached selection */
-			vis_mode_switch(vis, win->mark_set_lru_modes[cursor]);
-			view_selections_set_all(view, sel, view_selections_primary_get(view)->anchored);
+		if (advance < 0) {
+			if (win->jumplist_cursor == win->jumplist_count) {
+				bool appended = jumplist_save_current(vis, false);
+				if (appended && win->jumplist_count > 1)
+					win->jumplist_cursor = win->jumplist_count - 2;
+				else if (!appended && win->jumplist_count > 1)
+					win->jumplist_cursor = win->jumplist_count - 2;
+				else
+					win->jumplist_cursor = 0;
+			} else if (win->jumplist_cursor == 0) {
+				win->jumplist_cursor = win->jumplist_count - 1;
+			} else if (win->jumplist_cursor > win->jumplist_count) {
+				win->jumplist_cursor = win->jumplist_count - 1;
+			} else {
+				win->jumplist_cursor--;
+			}
+		} else {
+			if (win->jumplist_cursor >= win->jumplist_count || win->jumplist_cursor + 1 >= win->jumplist_count) {
+				win->jumplist_cursor = win->jumplist_count;
+				return;
+			}
+			win->jumplist_cursor++;
 		}
-		da_release(&sel);
+
+		jumplist_jump(vis, &win->jumplist[win->jumplist_cursor]);
+		return;
 	}
 
-	if (!advance && !done) {
-		/* NOTE: save the current selection */
-		mark_set(vis, win, next, cur);
-		win->mark_set_lru_modes[cursor] = vis->mode->id;
-		win->mark_set_lru_cursor++;
-	}
-
-	da_release(&cur);
+	jumplist_save_current(vis, true);
 }
 
 enum VisMark vis_mark_from(Vis *vis, char mark) {

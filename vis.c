@@ -170,6 +170,8 @@ static void window_free(Win *win) {
 		map_free(win->modes[i].bindings);
 	for (int i = 0; i < VIS_MARK_SET_LRU_COUNT; i++)
 		da_release(win->mark_set_lru_regions + i);
+	for (int i = 0; i < VIS_JUMPLIST_COUNT; i++)
+		free(win->jumplist[i].path);
 	da_release(&win->saved_selections);
 	free(win);
 }

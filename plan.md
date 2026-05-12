@@ -81,6 +81,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - Fixed: directory CLI startup (`vis lua/`) uses current-directory picker instead of workspace-root picker.
 - Fixed: location picker jumps clear old selections and normalize mode before moving cursor.
 - Fixed: picker preview cache includes selected item and column so same-file jumplist entries refresh correctly.
+- Fixed: jumplist storage is file-aware (`path`, byte position, line, column, mode), so the jumplist picker can preview and jump across files correctly.
 
 ## Backlog
 

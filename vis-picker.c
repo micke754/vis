@@ -783,6 +783,11 @@ static void picker_on_buffer_select(Vis *vis, const PickerItem *item, PickerOpen
 
 static void picker_on_jumplist_select(Vis *vis, const PickerItem *item, PickerOpenMode open_mode) {
 	(void)open_mode;
+	const char *path = item ? item->path : NULL;
+	if (path && vis->win && (!vis->win->file || !vis->win->file->name || strcmp(vis->win->file->name, path) != 0)) {
+		if (!picker_open_path(vis, path, PICKER_OPEN_CURRENT))
+			return;
+	}
 	picker_jump_to_item(vis, item);
 }
 
@@ -790,28 +795,22 @@ void picker_open_jumplist(Vis *vis) {
 	Win *win = vis->win;
 	if (!win || !win->file)
 		return;
-	PickerItem *items = calloc(VIS_MARK_SET_LRU_COUNT, sizeof(PickerItem));
+	PickerItem *items = calloc(VIS_JUMPLIST_COUNT, sizeof(PickerItem));
 	if (!items)
 		return;
 
 	int count = 0;
-	const char *path = win->file->name;
-	const char *name = path ? path : "[No Name]";
-	for (size_t i = 0; i < VIS_MARK_SET_LRU_COUNT; i++) {
-		SelectionRegionList *regions = &win->mark_set_lru_regions[i];
-		if (!regions->count)
+	for (size_t i = 0; i < win->jumplist_count; i++) {
+		JumpListEntry *entry = &win->jumplist[i];
+		if (entry->line <= 0)
 			continue;
-		Filerange range = view_regions_restore(&win->view, regions->data[0]);
-		if (!text_range_valid(range))
-			continue;
-		int line = (int)text_lineno_by_pos(win->file->text, range.start);
-		int column = text_line_char_get(win->file->text, range.start) + 1;
+		const char *name = entry->path ? entry->path : "[No Name]";
 		char label[4096];
-		snprintf(label, sizeof(label), "%s:%d:%d", name, line, column);
-		if (!picker_item_set(&items[count], PICKER_ITEM_LOCATION, label, path))
+		snprintf(label, sizeof(label), "%s:%d:%d", name, entry->line, entry->column);
+		if (!picker_item_set(&items[count], PICKER_ITEM_LOCATION, label, entry->path))
 			continue;
-		items[count].line = line;
-		items[count].column = column;
+		items[count].line = entry->line;
+		items[count].column = entry->column;
 		count++;
 	}
 

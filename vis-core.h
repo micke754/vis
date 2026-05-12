@@ -79,6 +79,14 @@ typedef struct PickerItem {
 	PickerItemKind kind;
 } PickerItem;
 
+typedef struct JumpListEntry {
+	char *path;
+	size_t pos;
+	int line;
+	int column;
+	enum VisMode mode;
+} JumpListEntry;
+
 typedef struct {
 	Buffer     *data;
 	VisDACount  count;
@@ -216,6 +224,10 @@ struct Win {
 	size_t              mark_set_lru_cursor;
 	SelectionRegionList mark_set_lru_regions[VIS_MARK_SET_LRU_COUNT];
 	enum VisMode        mark_set_lru_modes[VIS_MARK_SET_LRU_COUNT];
+	#define VIS_JUMPLIST_COUNT (32)
+	size_t              jumplist_cursor;
+	size_t              jumplist_count;
+	JumpListEntry       jumplist[VIS_JUMPLIST_COUNT];
 };
 
 struct Vis {
