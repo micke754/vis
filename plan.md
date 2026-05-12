@@ -61,7 +61,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 #### Target scope
 - [x] Refactor picker from string-only entries to structured items (`label`, `path`, `line`, `column`, `kind`, `detail`, future payload).
 - [x] Preserve current file and buffer picker behavior during the refactor.
-- [ ] Add generic picker action handling so future diagnostics/symbol/reference pickers can open locations without changing picker core.
+- [x] Add generic picker action handling so future diagnostics/symbol/reference pickers can open locations without changing picker core.
 - [x] Add Helix-like navigation polish: Tab/Shift-Tab, PageUp/PageDown, Home/End, Ctrl-u/Ctrl-d.
 - [x] Add preview toggle (`Ctrl-t`).
 - [x] Split file pickers into workspace-root picker and current-directory picker.
@@ -76,7 +76,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - Picker item model should be able to represent future LSP diagnostics, document symbols, workspace symbols, references, and global search matches.
 - LSP branch should be able to feed structured items into picker without another picker refactor.
 - Formatter/LSP implementation remains a follow-up branch; current Lua plugin setup stays as bridge only.
-- Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, and Helix-like navigation keys are implemented. Syntax-highlighted preview is not done yet.
+- Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, Helix-like navigation keys, and current/split/vsplit open modes are implemented. Syntax-highlighted preview is not done yet.
 
 ## Backlog
 

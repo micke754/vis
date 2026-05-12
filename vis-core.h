@@ -57,6 +57,12 @@ typedef enum {
 	PICKER_ITEM_LOCATION,
 } PickerItemKind;
 
+typedef enum {
+	PICKER_OPEN_CURRENT,
+	PICKER_OPEN_HORIZONTAL,
+	PICKER_OPEN_VERTICAL,
+} PickerOpenMode;
+
 typedef struct PickerItem {
 	char *label;
 	char *path;
@@ -256,7 +262,7 @@ struct Vis {
 		int item_count;
 		PickerItem **filtered;
 		int filtered_count;
-		void (*on_select)(Vis*, const PickerItem*);
+		void (*on_select)(Vis*, const PickerItem*, PickerOpenMode);
 		Win *saved_win;
 		Mode *saved_mode;
 	} picker;
@@ -396,7 +402,7 @@ VIS_INTERNAL bool register_resize(Register*, size_t count);
 
 /* Picker */
 void vis_picker_input(Vis *vis, const char *data, size_t len);
-void picker_open(Vis *vis, PickerItem *items, int count, void (*on_select)(Vis*, const PickerItem*));
+void picker_open(Vis *vis, PickerItem *items, int count, void (*on_select)(Vis*, const PickerItem*, PickerOpenMode));
 void picker_refilter(Vis *vis);
 void picker_draw(Vis *vis);
 void vis_picker_leave(Vis *vis, Mode *old_mode);

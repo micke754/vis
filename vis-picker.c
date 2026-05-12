@@ -110,6 +110,8 @@ static bool picker_bindings_init(Vis *vis) {
 		{ "<C-t>",           "vis-picker-toggle-preview" },
 		{ "<Enter>",         "vis-picker-accept" },
 		{ "<C-j>",           "vis-picker-accept" },
+		{ "<C-s>",           "vis-picker-accept-split" },
+		{ "<C-v>",           "vis-picker-accept-vsplit" },
 		{ "<Escape>",        "vis-picker-cancel" },
 		{ "<C-c>",           "vis-picker-cancel" },
 		{ "<C-g>",           "vis-picker-cancel" },
@@ -131,7 +133,7 @@ static bool picker_bindings_init(Vis *vis) {
 }
 
 /* Open the picker with a list of items */
-void picker_open(Vis *vis, PickerItem *items, int count, void (*on_select)(Vis*, const PickerItem*)) {
+void picker_open(Vis *vis, PickerItem *items, int count, void (*on_select)(Vis*, const PickerItem*, PickerOpenMode)) {
 	if (!picker_bindings_init(vis))
 		goto err;
 
@@ -169,7 +171,7 @@ err:
 }
 
 /* Close the picker, optionally accepting the selection */
-static void picker_close(Vis *vis, bool accept) {
+static void picker_close(Vis *vis, bool accept, PickerOpenMode open_mode) {
 	if (!vis->picker.active)
 		return;
 
@@ -179,7 +181,7 @@ static void picker_close(Vis *vis, bool accept) {
 		has_selection = picker_item_copy(&selection, vis->picker.filtered[vis->picker.selected]);
 	}
 
-	void (*on_select)(Vis*, const PickerItem*) = vis->picker.on_select;
+	void (*on_select)(Vis*, const PickerItem*, PickerOpenMode) = vis->picker.on_select;
 
 	picker_items_free(vis->picker.items, vis->picker.item_count);
 	free(vis->picker.filtered);
@@ -199,7 +201,7 @@ static void picker_close(Vis *vis, bool accept) {
 		vis->mode = &vis_modes[VIS_MODE_NORMAL];
 
 	if (on_select && has_selection)
-		on_select(vis, &selection);
+		on_select(vis, &selection, open_mode);
 
 	picker_item_free(&selection);
 
@@ -213,7 +215,7 @@ void vis_picker_leave(Vis *vis, Mode *old_mode) {
 	(void)old_mode;
 	if (!vis->picker.active)
 		return;
-	picker_close(vis, false);
+	picker_close(vis, false, PICKER_OPEN_CURRENT);
 }
 
 /* Fuzzy match: returns score if needle matches haystack, 0 if no match.
@@ -390,12 +392,17 @@ static KEY_ACTION_FN(ka_picker_toggle_preview) {
 }
 
 static KEY_ACTION_FN(ka_picker_accept) {
-	picker_close(vis, true);
+	picker_close(vis, true, PICKER_OPEN_CURRENT);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_accept_open) {
+	picker_close(vis, true, arg->i);
 	return keys;
 }
 
 static KEY_ACTION_FN(ka_picker_cancel) {
-	picker_close(vis, false);
+	picker_close(vis, false, PICKER_OPEN_CURRENT);
 	return keys;
 }
 
@@ -439,16 +446,42 @@ static KEY_ACTION_FN(ka_picker_clear_filter) {
 	return keys;
 }
 
-/* File picker callback: open selected file.
- * Increments old file refcount before replacement so it stays
- * in vis->files for the buffer picker (<Space>b) to find. */
-static void picker_on_file_select(Vis *vis, const PickerItem *item) {
+static void picker_jump_to_item(Vis *vis, const PickerItem *item) {
+	if (!vis->win || !vis->win->file || !item || item->line <= 0)
+		return;
+	size_t pos = text_pos_by_lineno(vis->win->file->text, item->line);
+	if (pos == EPOS)
+		return;
+	if (item->column > 0)
+		pos = text_line_char_set(vis->win->file->text, pos, item->column - 1);
+	if (pos != EPOS)
+		view_cursors_to(vis->win->view.selection, pos);
+}
+
+static bool picker_open_path(Vis *vis, const char *path, PickerOpenMode open_mode) {
+	if (!path || !vis->win)
+		return false;
+	switch (open_mode) {
+	case PICKER_OPEN_HORIZONTAL:
+		ui_arrange(&vis->ui, UI_LAYOUT_HORIZONTAL);
+		return vis_window_new(vis, path);
+	case PICKER_OPEN_VERTICAL:
+		ui_arrange(&vis->ui, UI_LAYOUT_VERTICAL);
+		return vis_window_new(vis, path);
+	case PICKER_OPEN_CURRENT:
+	default:
+		/* Keep old file alive (hidden buffer) so buffer picker can find it. */
+		if (vis->win->file)
+			vis->win->file->refcount++;
+		return vis_window_change_file(vis->win, path);
+	}
+}
+
+/* File picker callback: open selected file. */
+static void picker_on_file_select(Vis *vis, const PickerItem *item, PickerOpenMode open_mode) {
 	const char *path = item ? item->path : NULL;
-	if (!path || !vis->win) return;
-	/* Keep old file alive (hidden buffer) so buffer picker can find it */
-	if (vis->win->file)
-		vis->win->file->refcount++;
-	vis_window_change_file(vis->win, path);
+	if (picker_open_path(vis, path, open_mode))
+		picker_jump_to_item(vis, item);
 }
 
 /* Check if a file is binary by reading the first 8KB.
@@ -624,21 +657,24 @@ void picker_open_files_current(Vis *vis) {
 }
 
 /* Buffer picker callback: switch to selected buffer */
-static void picker_on_buffer_select(Vis *vis, const PickerItem *item) {
+static void picker_on_buffer_select(Vis *vis, const PickerItem *item, PickerOpenMode open_mode) {
 	const char *path = item ? item->path : NULL;
 	if (!path || !vis->win) return;
+	if (open_mode != PICKER_OPEN_CURRENT) {
+		if (picker_open_path(vis, path, open_mode))
+			picker_jump_to_item(vis, item);
+		return;
+	}
 	/* Find existing window for this file */
 	for (Win *win = vis->windows; win; win = win->next) {
 		if (win->file && win->file->name && strcmp(win->file->name, path) == 0) {
 			vis->win = win;
+			picker_jump_to_item(vis, item);
 			return;
 		}
 	}
-	/* Not open in any window - load into current window.
-	 * Keep old file alive so it stays in the buffer list. */
-	if (vis->win->file)
-		vis->win->file->refcount++;
-	vis_window_change_file(vis->win, path);
+	if (picker_open_path(vis, path, open_mode))
+		picker_jump_to_item(vis, item);
 }
 
 /* Open buffer picker: list open buffers */

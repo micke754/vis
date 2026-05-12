@@ -154,6 +154,8 @@ static Vis vis[1];
 	X(ka_picker_edge,                    PICKER_LAST,                      .i = +1,                                  "vis-picker-last",                      "Picker move to last item") \
 	X(ka_picker_toggle_preview,          PICKER_TOGGLE_PREVIEW,            0,                                        "vis-picker-toggle-preview",            "Picker toggle preview") \
 	X(ka_picker_accept,                  PICKER_ACCEPT,                    0,                                        "vis-picker-accept",                    "Picker accept selection") \
+	X(ka_picker_accept_open,             PICKER_ACCEPT_SPLIT,              .i = PICKER_OPEN_HORIZONTAL,               "vis-picker-accept-split",              "Picker open selection in horizontal split") \
+	X(ka_picker_accept_open,             PICKER_ACCEPT_VSPLIT,             .i = PICKER_OPEN_VERTICAL,                 "vis-picker-accept-vsplit",             "Picker open selection in vertical split") \
 	X(ka_picker_cancel,                  PICKER_CANCEL,                    0,                                        "vis-picker-cancel",                    "Picker cancel") \
 	X(ka_picker_backspace,               PICKER_BACKSPACE,                 0,                                        "vis-picker-backspace",                 "Picker delete filter char") \
 	X(ka_picker_delete_word,             PICKER_DELETE_WORD,               0,                                        "vis-picker-delete-word",               "Picker delete filter word") \
