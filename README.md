@@ -45,8 +45,26 @@ TRE, optional
 Then build:
 
 ```sh
-./configure
+./configure --enable-lpeg-static
 make -j2
+./vis path/to/file
+```
+
+`configure` prefers static LPeg when available. If no static LPeg archive works,
+it falls back to compiling the bundled LPeg sources into the `vis` binary. This
+keeps syntax highlighting available for a raw `make && ./vis` workflow without
+needing `LUA_CPATH`.
+
+If the bundled LPeg sources are not present, run `./configure` without
+`--enable-lpeg-static` to use the normal dynamic Lua module fallback instead.
+
+When dependencies are discovered from absolute library directories, `configure`
+adds matching runtime paths to the binary. This lets the raw `make` binary find
+libraries such as TRE without setting `LD_LIBRARY_PATH`.
+
+Install if needed:
+
+```sh
 sudo make install
 ```
 
@@ -100,7 +118,7 @@ Run the Helix keymap tests:
 
 ```sh
 cd test/lua
-for t in keymap-helix-*.lua; do LD_LIBRARY_PATH=../../dependency/install/usr/lib ./test.sh "$t" || exit 1; done
+for t in keymap-helix-*.lua; do ./test.sh "$t" || exit 1; done
 ```
 
 ## Branches

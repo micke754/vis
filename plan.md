@@ -153,10 +153,14 @@ All in `test/lua/`:
 ```
 keymap-helix-{count,find,goto,insert,line,match,multicursor,operator,paste,profile,regression,repeat,replace,search,select,surround,textobj}.lua
 ```
-Run: `cd test/lua && for t in keymap-helix-*.lua; do LD_LIBRARY_PATH=../../dependency/install/usr/lib ./test.sh $t || exit 1; done`
+Run: `cd test/lua && for t in keymap-helix-*.lua; do ./test.sh $t || exit 1; done`
 
 ## Build & Run
 ```sh
+./configure --enable-lpeg-static
 make -j2
-LD_LIBRARY_PATH=./dependency/install/usr/lib ./vis
+./vis
 ```
+
+- `configure` adds rpaths for absolute dependency library directories so raw `make` binaries can find TRE/Lua/termkey without `LD_LIBRARY_PATH`.
+- Static LPeg is preferred; if no compatible static archive is found, bundled LPeg sources are compiled into `vis`.

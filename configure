@@ -106,6 +106,28 @@ return 1
 fi
 }
 
+append_rpaths () {
+result=
+for flag in $1; do
+	result="$result $flag"
+	case "$flag" in
+	-L/*)
+		dir=${flag#-L}
+		case "$dir" in
+		/lib|/lib/*|/usr/lib|/usr/lib/*) ;;
+		*)
+			case " $result " in
+			*" -Wl,-rpath,$dir "*) ;;
+			*) result="$result -Wl,-rpath,$dir" ;;
+			esac
+			;;
+		esac
+		;;
+	esac
+done
+printf "%s" "${result# }"
+}
+
 # Beginning of actual script
 
 CFLAGS_AUTO=
@@ -529,6 +551,37 @@ EOF
 		fi
 	done
 
+	if test -z "${CFLAGS_LPEG}"; then
+		for liblpeg in "$SRCDIR/dependency/build/lpeg-1.0.2/liblpeg.a" "dependency/build/lpeg-1.0.2/liblpeg.a"; do
+			printf " checking for bundled static lpeg... "
+			if test -f "$liblpeg" && $CC $CFLAGS $CFLAGS_LUA "$tmpc" \
+				$LDFLAGS $LDFLAGS_LUA "$liblpeg" -o "$tmpo" >/dev/null 2>&1 ; then
+				CFLAGS_LPEG="-DCONFIG_LPEG=1"
+				LDFLAGS_LPEG="$liblpeg"
+				printf "yes\n"
+				break
+			else
+				printf "no\n"
+			fi
+		done
+	fi
+
+	if test -z "${CFLAGS_LPEG}"; then
+		for lpeg_dir in "$SRCDIR/dependency/build/lpeg-1.0.2" "dependency/build/lpeg-1.0.2"; do
+			printf " checking for bundled lpeg sources... "
+			lpeg_sources="$lpeg_dir/lpcap.c $lpeg_dir/lpcode.c $lpeg_dir/lpprint.c $lpeg_dir/lptree.c $lpeg_dir/lpvm.c"
+			if test -f "$lpeg_dir/lptree.c" && $CC $CFLAGS $CFLAGS_LUA "$tmpc" \
+				$LDFLAGS $LDFLAGS_LUA $lpeg_sources -o "$tmpo" >/dev/null 2>&1 ; then
+				CFLAGS_LPEG="-DCONFIG_LPEG=1"
+				LDFLAGS_LPEG="$lpeg_sources"
+				printf "yes\n"
+				break
+			else
+				printf "no\n"
+			fi
+		done
+	fi
+
 	# Homebrew on macOS does not provide a pkg-config file or a static
 	# liblpeg.a in the default linker search path. Try to locate it
 	# via brew --prefix as a fallback.
@@ -620,6 +673,14 @@ EOF
 		test "$selinux" = "yes" && fail "$0: cannot find libselinux"
 	fi
 fi
+
+LDFLAGS_TERMKEY=$(append_rpaths "$LDFLAGS_TERMKEY")
+LDFLAGS_CURSES=$(append_rpaths "$LDFLAGS_CURSES")
+LDFLAGS_TRE=$(append_rpaths "$LDFLAGS_TRE")
+LDFLAGS_LUA=$(append_rpaths "$LDFLAGS_LUA")
+LDFLAGS_LPEG=$(append_rpaths "$LDFLAGS_LPEG")
+LDFLAGS_ACL=$(append_rpaths "$LDFLAGS_ACL")
+LDFLAGS_SELINUX=$(append_rpaths "$LDFLAGS_SELINUX")
 
 printf "completing config.mk... "
 
