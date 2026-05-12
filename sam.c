@@ -287,6 +287,7 @@ enum {
 	OPTION_CHANGE_256COLORS,
 	OPTION_LAYOUT,
 	OPTION_IGNORECASE,
+	OPTION_SELECTION_SEMANTICS,
 	OPTION_BREAKAT,
 	OPTION_WRAP_COLUMN,
 };
@@ -386,6 +387,11 @@ static const OptionDef options[] = {
 		{ "ignorecase", "ic" },
 		VIS_OPTION_TYPE_BOOL,
 		VIS_HELP("Ignore case when searching")
+	},
+	[OPTION_SELECTION_SEMANTICS] = {
+		{ "selectionsemantics" },
+		VIS_OPTION_TYPE_STRING,
+		VIS_HELP("Selection behavior to use 'vim' or 'helix'")
 	},
 	[OPTION_BREAKAT] = {
 		{ "breakat", "brk" },

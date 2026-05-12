@@ -18,6 +18,8 @@
 #include "vis-marks.c"
 #include "vis-modes.c"
 #include "vis-motions.c"
+#include "vis-helix.c"
+#include "vis-picker.c"
 #include "vis-operators.c"
 #include "vis-prompt.c"
 #include "vis-registers.c"
@@ -320,6 +322,36 @@ void vis_window_draw(Win *win) {
 		window_draw_selections(win);
 	window_draw_eof(win);
 
+	/* Render jump labels on View cells */
+	if (win->view.jump_labels_count > 0) {
+		for (int ji = 0; ji < win->view.jump_labels_count; ji++) {
+			JumpLabel *label = &win->view.jump_labels[ji];
+			Line *jline; int jcol;
+			if (!view_coord_get(&win->view, label->pos, &jline, NULL, &jcol))
+				continue;
+			/* Skip continuation cells (multi-column chars) */
+			while (jcol < jline->width && jcol < win->view.width && jline->cells[jcol].len == 0)
+				jcol++;
+			if (jcol >= jline->width || jcol >= win->view.width)
+				continue;
+			memset(jline->cells[jcol].data, 0, sizeof(jline->cells[jcol].data));
+			jline->cells[jcol].data[0] = label->text[0];
+			jline->cells[jcol].len = 1;
+			jline->cells[jcol].width = 1;
+			ui_window_style_set(&win->vis->ui, win->id, &jline->cells[jcol], UI_STYLE_JUMP_LABEL, false);
+			int jnc = jcol + 1;
+			while (jnc < jline->width && jnc < win->view.width && jline->cells[jnc].len == 0)
+				jnc++;
+			if (jnc < jline->width && jnc < win->view.width) {
+				memset(jline->cells[jnc].data, 0, sizeof(jline->cells[jnc].data));
+				jline->cells[jnc].data[0] = label->text[1];
+				jline->cells[jnc].len = 1;
+				jline->cells[jnc].width = 1;
+				ui_window_style_set(&win->vis->ui, win->id, &jline->cells[jnc], UI_STYLE_JUMP_LABEL, false);
+			}
+		}
+	}
+
 	if (win->options & UI_OPTION_STATUSBAR)
 		vis_event_emit(vis, VIS_EVENT_WIN_STATUS, win);
 }
@@ -389,6 +421,7 @@ bool vis_window_change_file(Win *win, const char* filename) {
 		file_free(win->vis, win->file);
 	win->file = file;
 	view_reload(&win->view, file->text);
+	vis_event_emit(win->vis, VIS_EVENT_WIN_OPEN, win);
 	return true;
 }
 
@@ -689,6 +722,66 @@ void vis_keymap_disable(Vis *vis) {
 	vis->keymap_disabled = true;
 }
 
+static size_t movement_apply(Vis *vis, Win *win, File *file, Text *txt, View *view, Selection *sel, const Movement *movement, size_t pos) {
+	if (movement->txt)
+		return movement->txt(txt, pos);
+	if (movement->cur)
+		return movement->cur(sel);
+	if (movement->file)
+		return movement->file(vis, file, sel);
+	if (movement->vis)
+		return movement->vis(vis, txt, pos);
+	if (movement->view)
+		return movement->view(vis, view);
+	if (movement->win)
+		return movement->win(vis, win, pos);
+	if (movement->user)
+		return movement->user(vis, win, movement->data, pos);
+	return pos;
+}
+
+static enum VisMotion helix_repeat_motion_id(const Movement *movement) {
+	if (!movement)
+		return VIS_MOVE_INVALID;
+	for (enum VisMotion id = 0; id < VIS_MOVE_INVALID; id++) {
+		if (movement == &vis_motions[id])
+			return id;
+	}
+	return VIS_MOVE_INVALID;
+}
+
+static enum VisOperator helix_repeat_operator_id(const Operator *op) {
+	if (!op)
+		return VIS_OP_INVALID;
+	for (enum VisOperator id = 0; id < VIS_OP_INVALID; id++) {
+		if (op == &vis_operators[id])
+			return id;
+	}
+	return VIS_OP_INVALID;
+}
+
+static bool helix_repeat_operator_supported(enum VisOperator op) {
+	return op == VIS_OP_DELETE || op == VIS_OP_CHANGE || op == VIS_OP_YANK ||
+	       op == VIS_OP_SHIFT_LEFT || op == VIS_OP_SHIFT_RIGHT;
+}
+
+static bool helix_repeat_selection_supported(enum VisMotion motion) {
+	switch (motion) {
+	case VIS_MOVE_WORD_START_NEXT:
+	case VIS_MOVE_WORD_START_PREV:
+	case VIS_MOVE_WORD_END_NEXT:
+	case VIS_MOVE_WORD_END_PREV:
+	case VIS_MOVE_LONGWORD_START_NEXT:
+	case VIS_MOVE_LONGWORD_START_PREV:
+	case VIS_MOVE_LONGWORD_END_NEXT:
+	case VIS_MOVE_LONGWORD_END_PREV:
+		return true;
+	default:
+		return false;
+	}
+}
+
+
 void vis_do(Vis *vis) {
 	Win *win = vis->win;
 	if (!win)
@@ -746,31 +839,36 @@ void vis_do(Vis *vis) {
 
 		last_reg_slot = c.reg_slot;
 
+		if (!a->op && a->movement && helix_search_repeat(vis, txt, view, sel, a->movement, count))
+			continue;
+
+		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !vis->mode->visual &&
+		    !a->op && a->movement && helix_word_movement(a->movement)) {
+			bool backward = false;
+			if (helix_word_range(txt, sel, a->movement, count, vis->helix_select, &c.range, &backward))
+				view_selections_set_directed(sel, &c.range, backward);
+			continue;
+		}
+
 		bool err = false;
 		if (a->movement) {
 			size_t start = pos;
+			HelixWordMotionState helix_word = { .count = count };
+			helix_visual_word_prepare(vis, txt, sel, a->movement, &helix_word, &pos, &start);
+			count = helix_word.count;
+			if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !vis->mode->visual &&
+			    !a->op && sel->anchored && !vis->helix_select)
+				view_selection_clear(sel);
 			for (int i = 0; i < count; i++) {
 				size_t pos_prev = pos;
-				if (a->movement->txt)
-					pos = a->movement->txt(txt, pos);
-				else if (a->movement->cur)
-					pos = a->movement->cur(sel);
-				else if (a->movement->file)
-					pos = a->movement->file(vis, file, sel);
-				else if (a->movement->vis)
-					pos = a->movement->vis(vis, txt, pos);
-				else if (a->movement->view)
-					pos = a->movement->view(vis, view);
-				else if (a->movement->win)
-					pos = a->movement->win(vis, win, pos);
-				else if (a->movement->user)
-					pos = a->movement->user(vis, win, a->movement->data, pos);
+				pos = movement_apply(vis, win, file, txt, view, sel, a->movement, pos);
 				if (pos == EPOS || a->movement->type & IDEMPOTENT || pos == pos_prev) {
 					err = a->movement->type & COUNT_EXACT;
 					break;
 				}
 			}
 
+			pos = helix_word_after_motion(vis, txt, a->movement, start, pos, helix_word.partial_start_next);
 			if (err) {
 				repeatable = false;
 				continue; // break?
@@ -786,17 +884,24 @@ void vis_do(Vis *vis) {
 			}
 
 			if (!a->op) {
-				if (a->movement->type & CHARWISE)
+				if (helix_find_select(vis, txt, sel, a->movement, start, pos)) {
+					/* selection updated by helper */
+				} else if (helix_select_extend(vis, txt, sel, a->movement, pos, helix_word.backward)) {
+					/* selection updated by helper */
+				} else if (a->movement->type & CHARWISE) {
 					view_cursors_scroll_to(sel, pos);
-				else
+				} else {
 					view_cursors_to(sel, pos);
+				}
 				if (vis->mode->visual)
-					c.range = view_selections_get(sel);
+					helix_visual_word_adjust(vis, txt, sel, a->movement, pos, helix_word.count,
+					                         helix_word.initial_partial, helix_word.backward, &c.range);
 			} else if (a->movement->type & INCLUSIVE && c.range.end > start) {
 				c.range.end = text_char_next(txt, c.range.end);
 			} else if (linewise && (a->movement->type & LINEWISE_INCLUSIVE)) {
 				c.range.end = text_char_next(txt, c.range.end);
 			}
+		} else if (helix_operator_context(vis, txt, sel, a, &c)) {
 		} else if (a->textobj) {
 			if (vis->mode->visual)
 				c.range = view_selections_get(sel);
@@ -851,12 +956,28 @@ void vis_do(Vis *vis) {
 		}
 
 		if (a->op) {
+			if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
+				enum VisOperator op = helix_repeat_operator_id(a->op);
+				if (!vis->mode->visual && !a->movement && !a->textobj &&
+				    helix_repeat_operator_supported(op) &&
+				    helix_repeat_selection_supported(vis->helix_repeat.pending_selection)) {
+					vis->helix_repeat.kind = HELIX_REPEAT_SELECTION_OPERATOR;
+					vis->helix_repeat.selection = vis->helix_repeat.pending_selection;
+					vis->helix_repeat.op = op;
+					vis->helix_repeat.count = vis->helix_repeat.pending_count;
+				}
+				vis->helix_select = false;
+				helix_put_context(vis, txt, sel, a, &c);
+			}
 			size_t pos = a->op->func(vis, txt, &c);
 			if (pos == EPOS) {
 				view_selections_dispose(sel);
 			} else if (pos <= text_size(txt)) {
-				view_selection_clear(sel);
-				view_cursors_to(sel, pos);
+				if (!(vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX &&
+				      a->op == &vis_operators[VIS_OP_YANK])) {
+					view_selection_clear(sel);
+					view_cursors_to(sel, pos);
+				}
 			}
 		}
 	}
@@ -897,10 +1018,22 @@ void vis_do(Vis *vis) {
 	}
 
 	if (a != &vis->action_prev) {
+		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !a->op && a->movement) {
+			enum VisMotion motion = helix_repeat_motion_id(a->movement);
+			if (helix_repeat_selection_supported(motion)) {
+				vis->helix_repeat.pending_selection = motion;
+				vis->helix_repeat.pending_count = count;
+			} else {
+				vis->helix_repeat.pending_selection = VIS_MOVE_INVALID;
+				vis->helix_repeat.pending_count = 0;
+			}
+		}
 		if (repeatable) {
 			if (!a->macro)
 				a->macro = vis->macro_operator;
 			vis->action_prev = *a;
+			if (vis->helix_repeat.kind != HELIX_REPEAT_SELECTION_OPERATOR)
+				vis->helix_repeat.kind = HELIX_REPEAT_NONE;
 		}
 		action_reset(a);
 	}
@@ -1030,6 +1163,68 @@ static void vis_keys_process(Vis *vis, size_t pos) {
 	KeyBinding *binding = NULL;
 
 	while (cur && *cur) {
+		if (vis->jump_labels_active) {
+			const char *key_end = vis_keys_next(vis, cur);
+			size_t key_len = key_end ? (size_t)(key_end - cur) : 1;
+			Win *win = vis->win;
+			if (win && win->view.jump_labels_count > 0) {
+				char ch = *cur;
+				if (key_len != 1 || ch == 27 || ch == '\r' || ch == '\n' || ch == ' ') {
+					view_jump_labels_clear(&win->view);
+					vis->jump_labels_active = false;
+					vis->jump_label_input_count = 0;
+					vis_window_invalidate(win);
+					vis_draw(vis);
+					buffer_remove(buf, start - buf->data, key_len);
+					return;
+				}
+				int matched = 0;
+				for (int j = 0; j < win->view.jump_labels_count; j++) {
+					if (vis->jump_label_input_count == 0) {
+						if (win->view.jump_labels[j].text[0] == ch) {
+							vis->jump_label_input_count = 1;
+							vis->jump_label_first = ch;
+							matched = 1;
+							break;
+						}
+					} else {
+						if (win->view.jump_labels[j].text[0] == vis->jump_label_first &&
+						    win->view.jump_labels[j].text[1] == ch) {
+							vis->jump_labels_active = false;
+							vis->jump_label_input_count = 0;
+							size_t pos = win->view.jump_labels[j].pos;
+							view_jump_labels_clear(&win->view);
+							vis_window_invalidate(win);
+							Text *txt = vis_text(vis);
+							Filerange word = text_object_word(txt, pos);
+							for (Selection *sel = view_selections(&win->view); sel; sel = view_selections_next(sel)) {
+								if (text_range_valid(&word)) {
+									view_selections_set_directed(sel, &word, false);
+								} else {
+									view_selection_clear(sel);
+									view_cursors_to(sel, pos);
+								}
+							}
+							vis_draw(vis);
+							buffer_remove(buf, start - buf->data, key_len);
+							return;
+						}
+					}
+				}
+				if (!matched) {
+					view_jump_labels_clear(&win->view);
+					vis->jump_labels_active = false;
+					vis->jump_label_input_count = 0;
+					vis_window_invalidate(win);
+					vis_draw(vis);
+					buffer_remove(buf, start - buf->data, key_len);
+					return;
+				}
+			}
+			buffer_remove(buf, start - buf->data, key_len);
+			return;
+		}
+
 
 		if (!(end = (char*)vis_keys_next(vis, cur))) {
 			buffer_remove(buf, keys - buf->data, strlen(keys));
@@ -1250,6 +1445,12 @@ int vis_run(Vis *vis) {
 	}
 
 	vis_event_emit(vis, VIS_EVENT_START);
+
+	/* If 'vis <directory>' was used, open the file picker */
+	if (vis->picker_open_at_start) {
+		vis->picker_open_at_start = false;
+		vis_keys_feed(vis, "<vis-picker-files>");
+	}
 
 	struct timespec idle = { .tv_nsec = 0 }, *timeout = NULL;
 

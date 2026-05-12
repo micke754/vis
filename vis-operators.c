@@ -291,6 +291,17 @@ bool vis_operator(Vis *vis, enum VisOperator id, ...)
 		goto out;
 	}
 
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->win) {
+		Selection *sel = view_selections_primary_get(&vis->win->view);
+		if (sel &&
+		    (id == VIS_OP_DELETE || id == VIS_OP_CHANGE || id == VIS_OP_YANK ||
+		     id == VIS_OP_SHIFT_LEFT || id == VIS_OP_SHIFT_RIGHT)) {
+			vis->action.op = op;
+			vis_do(vis);
+			goto out;
+		}
+	}
+
 	/* switch to operator mode inorder to make operator options and
 	 * text-object available */
 	vis_mode_switch(vis, VIS_MODE_OPERATOR_PENDING);

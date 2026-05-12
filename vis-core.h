@@ -42,6 +42,14 @@ enum PromptState {
 	PROMPTSTATE_COMMAND,   /* used to move cursor to the bottom of the terminal before running prompt command */
 };
 
+enum HelixPrompt {
+	HELIX_PROMPT_NONE,
+	HELIX_PROMPT_SELECT_REGEX,
+	HELIX_PROMPT_SPLIT_REGEX,
+	HELIX_PROMPT_KEEP_REGEX,
+	HELIX_PROMPT_REMOVE_REGEX,
+};
+
 typedef struct {
 	Buffer     *data;
 	VisDACount  count;
@@ -200,9 +208,46 @@ struct Vis {
 	int search_direction;                /* used for `n` and `N` */
 	enum TextLoadMethod load_method;     /* how existing files should be loaded */
 	enum PromptState prompt_state;       /* needed for determining primary cursor's position */
+	enum HelixPrompt helix_prompt;       /* pending Helix prompt command */
+	bool jump_labels_active;             /* waiting for jump label input */
+	int jump_label_input_count;          /* characters received so far */
+	char jump_label_first;                 /* first char of pending label input */
 	bool autoindent;                     /* whether indentation should be copied from previous line on newline */
 	bool change_colors;                  /* whether to adjust 256 color palette for true colors */
 	bool ignorecase;                     /* whether to ignore case when searching */
+	enum VisSelectionSemantics selection_semantics; /* vim or helix selection behavior */
+	bool helix_select;                   /* whether Helix select/extend mode is active */
+	struct {
+		enum { HELIX_REPEAT_NONE, HELIX_REPEAT_REPLACE_CHAR, HELIX_REPEAT_REPLACE_WITH_YANKED, HELIX_REPEAT_SELECTION_OPERATOR } kind;
+		char data[8]; /* replacement char (utf-8) or other small payload */
+		size_t len;   /* length of data */
+		enum VisMotion selection;
+		enum VisOperator op;
+		int count;
+		enum VisMotion pending_selection;
+		int pending_count;
+	} helix_repeat;
+	bool picker_open_at_start;
+	struct {
+		bool active;
+		char filter[256];
+		size_t filter_len;
+		int selected;
+		int scroll_offset;
+		char **items;
+		int item_count;
+		char **filtered;
+		int *filtered_indices; /* maps filtered index to items index */
+		int filtered_count;
+		void (*on_select)(Vis*, const char*);
+		Win *saved_win;
+		Mode *saved_mode;
+	} picker;
+	struct {
+		char **lines;
+		int line_count;
+		char *path;       /* currently previewed file path */
+	} picker_preview;
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
 	char *shell;                         /* shell used to launch external commands */
 	Map *cmds;                           /* ":"-commands, used for unique prefix queries */
@@ -330,5 +375,14 @@ VIS_INTERNAL bool register_slot_put_range(Vis*, Register*, size_t slot, Text*, F
 
 VIS_INTERNAL size_t vis_register_count(Vis*, Register*);
 VIS_INTERNAL bool register_resize(Register*, size_t count);
+
+
+/* Picker */
+void vis_picker_input(Vis *vis, const char *data, size_t len);
+void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, const char*));
+void picker_refilter(Vis *vis);
+void picker_draw(Vis *vis);
+void vis_picker_leave(Vis *vis, Mode *old_mode);
+void picker_open_files(Vis *vis);
 
 #endif

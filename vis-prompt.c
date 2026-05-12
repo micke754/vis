@@ -1,8 +1,31 @@
 #include "vis-core.h"
 
 bool vis_prompt_cmd(Vis *vis, const char *cmd) {
-	if (!cmd || !cmd[0] || !cmd[1])
+	if (!cmd)
 		return true;
+	if (vis->helix_prompt != HELIX_PROMPT_NONE) {
+		enum HelixPrompt prompt = vis->helix_prompt;
+		vis->helix_prompt = HELIX_PROMPT_NONE;
+		switch (prompt) {
+		case HELIX_PROMPT_SELECT_REGEX:
+			return prompt_helix_select_regex(vis, cmd);
+		case HELIX_PROMPT_SPLIT_REGEX:
+			return prompt_helix_split_regex(vis, cmd);
+		case HELIX_PROMPT_KEEP_REGEX:
+			return prompt_helix_keep_remove_regex(vis, cmd, false);
+		case HELIX_PROMPT_REMOVE_REGEX:
+			return prompt_helix_keep_remove_regex(vis, cmd, true);
+		case HELIX_PROMPT_NONE:
+			break;
+		}
+	}
+	if (!cmd[0] || !cmd[1]) {
+		if (cmd[0] == '/')
+			vis_motion(vis, VIS_MOVE_SEARCH_REPEAT_FORWARD);
+		else if (cmd[0] == '?')
+			vis_motion(vis, VIS_MOVE_SEARCH_REPEAT_BACKWARD);
+		return true;
+	}
 	switch (cmd[0]) {
 	case '/':
 		return vis_motion(vis, VIS_MOVE_SEARCH_FORWARD, cmd+1);
@@ -60,7 +83,7 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 		if (prompt->file == vis->command_file)
 			pattern = "^:";
 		else if (prompt->file == vis->search_file)
-			pattern = "^(/|\\?)";
+			pattern = vis->helix_prompt != HELIX_PROMPT_NONE ? "^" : "^(/|\\?)";
 		int cflags = REG_EXTENDED|REG_NEWLINE|(REG_ICASE*vis->ignorecase);
 		if (pattern && regex && text_regex_compile(regex, pattern, cflags) == 0) {
 			size_t end = text_line_end(txt, pos);
@@ -73,6 +96,12 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 			range = text_range_new(prev, next);
 		}
 		text_regex_free(regex);
+	}
+	if (vis->helix_prompt != HELIX_PROMPT_NONE && !text_range_valid(range)) {
+		size_t pos = view_cursor_get(view);
+		size_t line_start = text_line_begin(txt, pos);
+		size_t line_end = text_line_end(txt, pos);
+		range = text_range_new(line_start, line_end);
 	}
 	if (text_range_valid(range))
 		cmd = text_bytes_alloc0(txt, range.start, text_range_size(range));
@@ -106,6 +135,7 @@ static const char *prompt_enter(Vis *vis, const char *keys, const Arg *arg) {
 			text_appendf(vis, txt, "%s\n", cmd);
 		}
 	} else {
+		vis->helix_prompt = HELIX_PROMPT_NONE;
 		vis->win = prompt;
 		vis->mode = &vis_modes[VIS_MODE_INSERT];
 	}
@@ -119,6 +149,7 @@ static const char *prompt_esc(Vis *vis, const char *keys, const Arg *arg) {
 		view_selections_dispose_all(&prompt->view);
 	} else {
 		prompt_restore(prompt);
+		prompt->vis->helix_prompt = HELIX_PROMPT_NONE;
 		prompt_hide(prompt);
 	}
 	return keys;

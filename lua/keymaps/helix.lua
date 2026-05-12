@@ -1,0 +1,387 @@
+
+local surround = {
+	{ "(", "<vis-helix-surround-add-paren>", "Surround selections with ()" },
+	{ ")", "<vis-helix-surround-add-paren>", "Surround selections with ()" },
+	{ "[", "<vis-helix-surround-add-bracket>", "Surround selections with []" },
+	{ "]", "<vis-helix-surround-add-bracket>", "Surround selections with []" },
+	{ "{", "<vis-helix-surround-add-brace>", "Surround selections with {}" },
+	{ "}", "<vis-helix-surround-add-brace>", "Surround selections with {}" },
+	{ "<", "<vis-helix-surround-add-angle>", "Surround selections with <>" },
+	{ ">", "<vis-helix-surround-add-angle>", "Surround selections with <>" },
+	{ '"', "<vis-helix-surround-add-quote>", "Surround selections with quotes" },
+	{ "'", "<vis-helix-surround-add-single-quote>", "Surround selections with single quotes" },
+	{ "`", "<vis-helix-surround-add-backtick>", "Surround selections with backticks" },
+}
+
+
+local surround_delete = {
+	{ "(", "<vis-helix-surround-delete-paren>", "Delete surrounding ()" },
+	{ ")", "<vis-helix-surround-delete-paren>", "Delete surrounding ()" },
+	{ "[", "<vis-helix-surround-delete-bracket>", "Delete surrounding []" },
+	{ "]", "<vis-helix-surround-delete-bracket>", "Delete surrounding []" },
+	{ "{", "<vis-helix-surround-delete-brace>", "Delete surrounding {}" },
+	{ "}", "<vis-helix-surround-delete-brace>", "Delete surrounding {}" },
+	{ "<", "<vis-helix-surround-delete-angle>", "Delete surrounding <>" },
+	{ ">", "<vis-helix-surround-delete-angle>", "Delete surrounding <>" },
+	{ '"', "<vis-helix-surround-delete-quote>", "Delete surrounding quotes" },
+	{ "'", "<vis-helix-surround-delete-single-quote>", "Delete surrounding single quotes" },
+	{ "`", "<vis-helix-surround-delete-backtick>", "Delete surrounding backticks" },
+}
+
+local surround_replace = {}
+for _, from in ipairs(surround_delete) do
+	for _, to in ipairs(surround) do
+		surround_replace[#surround_replace + 1] = { from[1] .. to[1], from[2] .. to[2], "Replace surrounding pair" }
+	end
+end
+
+local textobjects_inner = {
+	{ "w", "<vis-textobject-word-inner>", "Select inner word" },
+	{ "W", "<vis-textobject-bigword-inner>", "Select inner WORD" },
+	{ "p", "<vis-textobject-paragraph>", "Select paragraph" },
+	{ "(", "<vis-textobject-parenthesis-inner>", "Select inner ()" },
+	{ ")", "<vis-textobject-parenthesis-inner>", "Select inner ()" },
+	{ "[", "<vis-textobject-square-bracket-inner>", "Select inner []" },
+	{ "]", "<vis-textobject-square-bracket-inner>", "Select inner []" },
+	{ "{", "<vis-textobject-curly-bracket-inner>", "Select inner {}" },
+	{ "}", "<vis-textobject-curly-bracket-inner>", "Select inner {}" },
+	{ "<", "<vis-textobject-angle-bracket-inner>", "Select inner <>" },
+	{ ">", "<vis-textobject-angle-bracket-inner>", "Select inner <>" },
+	{ '"', "<vis-textobject-quote-inner>", "Select inner quotes" },
+	{ "'", "<vis-textobject-single-quote-inner>", "Select inner single quotes" },
+	{ "`", "<vis-textobject-backtick-inner>", "Select inner backticks" },
+}
+
+local textobjects_outer = {
+	{ "w", "<vis-textobject-word-outer>", "Select around word" },
+	{ "W", "<vis-textobject-bigword-outer>", "Select around WORD" },
+	{ "p", "<vis-textobject-paragraph-outer>", "Select around paragraph" },
+	{ "(", "<vis-textobject-parenthesis-outer>", "Select around ()" },
+	{ ")", "<vis-textobject-parenthesis-outer>", "Select around ()" },
+	{ "[", "<vis-textobject-square-bracket-outer>", "Select around []" },
+	{ "]", "<vis-textobject-square-bracket-outer>", "Select around []" },
+	{ "{", "<vis-textobject-curly-bracket-outer>", "Select around {}" },
+	{ "}", "<vis-textobject-curly-bracket-outer>", "Select around {}" },
+	{ "<", "<vis-textobject-angle-bracket-outer>", "Select around <>" },
+	{ ">", "<vis-textobject-angle-bracket-outer>", "Select around <>" },
+	{ '"', "<vis-textobject-quote-outer>", "Select around quotes" },
+	{ "'", "<vis-textobject-single-quote-outer>", "Select around single quotes" },
+	{ "`", "<vis-textobject-backtick-outer>", "Select around backticks" },
+}
+
+local normal = {
+	{ "<Escape>", "<vis-mode-normal-escape>", "Return to normal mode" },
+	{ ":", "<vis-prompt-show>", "Open command prompt" },
+
+	{ "h", "<vis-motion-char-prev>", "Move left" },
+	{ "j", "<vis-motion-line-down>", "Move down" },
+	{ "k", "<vis-motion-line-up>", "Move up" },
+	{ "l", "<vis-motion-char-next>", "Move right" },
+	{ "<Left>", "<vis-motion-char-prev>", "Move left" },
+	{ "<Down>", "<vis-motion-line-down>", "Move down" },
+	{ "<Up>", "<vis-motion-line-up>", "Move up" },
+	{ "<Right>", "<vis-motion-char-next>", "Move right" },
+	{ "w", "<vis-motion-word-start-next>", "Select next word start" },
+	{ "b", "<vis-motion-word-start-prev>", "Select previous word start" },
+	{ "e", "<vis-motion-word-end-next>", "Select next word end" },
+	{ "W", "<vis-motion-bigword-start-next>", "Select next WORD start" },
+	{ "B", "<vis-motion-bigword-start-prev>", "Select previous WORD start" },
+	{ "E", "<vis-motion-bigword-end-next>", "Select next WORD end" },
+	{ "f", "<vis-motion-to-right>", "Select to next char" },
+	{ "t", "<vis-motion-till-right>", "Select till next char" },
+	{ "F", "<vis-motion-to-left>", "Select to previous char" },
+	{ "T", "<vis-motion-till-left>", "Select till previous char" },
+	{ "gg", "<vis-motion-line-first>", "Go to first line" },
+	{ "G", "<vis-motion-line-last>", "Go to last line" },
+	{ "ge", "<vis-motion-line-last>", "Go to end of file" },
+	{ "gs", "<vis-motion-line-start>", "Go to first non-blank" },
+	{ "gh", "<vis-motion-line-begin>", "Go to line start" },
+	{ "gl", "<vis-motion-line-end>", "Go to line end" },
+	{ "gt", "<vis-helix-goto-top>", "Go to viewport top" },
+	{ "gc", "<vis-helix-goto-center>", "Go to viewport center" },
+	{ "gb", "<vis-helix-goto-bottom>", "Go to viewport bottom" },
+	{ "<Home>", "<vis-motion-line-begin>", "Go to line start" },
+	{ "<End>", "<vis-motion-line-end>", "Go to line end" },
+	{ "<PageUp>", "<vis-window-page-up>", "Page up" },
+	{ "<PageDown>", "<vis-window-page-down>", "Page down" },
+	{ "<C-b>", "<vis-window-page-up>", "Page up" },
+	{ "<C-f>", "<vis-window-page-down>", "Page down" },
+	{ "<C-u>", "<vis-window-halfpage-up>", "Half page up" },
+	{ "<C-d>", "<vis-window-halfpage-down>", "Half page down" },
+	{ "<C-o>", "<vis-jumplist-prev>", "Jump backward" },
+	{ "<C-i>", "<vis-jumplist-next>", "Jump forward" },
+	{ "<C-s>", "<vis-jumplist-save>", "Save jump position" },
+	{ "<C-w>s", "<vis-prompt-show>split<Enter>", "Horizontal split" },
+	{ "<C-w>v", "<vis-prompt-show>vsplit<Enter>", "Vertical split" },
+	{ "<C-w>h", "<vis-window-prev>", "Focus previous window" },
+	{ "<C-w>j", "<vis-window-next>", "Focus next window" },
+	{ "<C-w>k", "<vis-window-prev>", "Focus previous window" },
+	{ "<C-w>l", "<vis-window-next>", "Focus next window" },
+	{ "<C-w><Left>", "<vis-window-prev>", "Focus previous window" },
+	{ "<C-w><Down>", "<vis-window-next>", "Focus next window" },
+	{ "<C-w><Up>", "<vis-window-prev>", "Focus previous window" },
+	{ "<C-w><Right>", "<vis-window-next>", "Focus next window" },
+	{ "<C-w>w", "<vis-window-next>", "Focus next window" },
+	{ "<C-w><C-w>", "<vis-window-next>", "Focus next window" },
+	{ "zt", "<vis-window-redraw-top>", "Scroll cursor line to top" },
+	{ "zz", "<vis-window-redraw-center>", "Scroll cursor line to center" },
+	{ "zb", "<vis-window-redraw-bottom>", "Scroll cursor line to bottom" },
+	{ "<Space>w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ "<Space>q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ " q", "<vis-prompt-show>q<Enter>", "Quit window" },
+
+	{ "v", "<vis-helix-select-toggle>", "Select mode" },
+	{ "V", "<vis-mode-visual-linewise>", "Line select mode" },
+	{ "x", "<vis-helix-line-select>", "Select current line" },
+	{ "X", "<vis-helix-line-select-current>", "Select current line" },
+	{ "i", "<vis-helix-insert>", "Insert before selection" },
+	{ "a", "<vis-helix-append>", "Append after selection" },
+	{ "I", "<vis-insert-line-start>", "Insert at line start" },
+	{ "A", "<vis-append-line-end>", "Insert at line end" },
+	{ "o", "<vis-helix-open-below>", "Open line below" },
+	{ "O", "<vis-helix-open-above>", "Open line above" },
+	{ ".", "<vis-helix-repeat>", "Repeat last change" },
+	{ "<C-a>", "<vis-helix-increment>", "Increment number" },
+	{ "<Space>f", "<vis-picker-files>", "Open file picker" },
+	{ "<Space>b", "<vis-picker-buffers>", "Open buffer picker" },
+	{ " f", "<vis-picker-files>", "Open file picker" },
+	{ " b", "<vis-picker-buffers>", "Open buffer picker" },
+	{ "<C-x>", "<vis-helix-decrement>", "Decrement number" },
+	{ "r", "<vis-helix-replace-char>", "Replace selection with char" },
+	{ "R", "<vis-helix-replace-with-yanked>", "Replace selection with yanked" },
+	{ "u", "<vis-undo>", "Undo" },
+	{ "U", "<vis-redo>", "Redo" },
+	{ "y", "<vis-operator-yank>", "Yank selection" },
+	{ "Y", "<vis-helix-yank-joined>", "Join and yank selections" },
+	{ "p", "<vis-put-after>", "Paste after" },
+	{ "P", "<vis-put-before>", "Paste before" },
+	{ "C", "<vis-selection-new-lines-below>", "Copy selection to next line" },
+	{ "<M-C>", "<vis-selection-new-lines-above>", "Copy selection to previous line" },
+	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
+	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
+	{ "&", "<vis-selections-align>", "Align selections" },
+	{ "(", "<vis-helix-rotate-selection-left>", "Rotate primary selection backward" },
+	{ ")", "<vis-helix-rotate-selection-right>", "Rotate primary selection forward" },
+	{ "<M-(>", "<vis-selections-rotate-left>", "Rotate selection contents left" },
+	{ "<M-)>", "<vis-selections-rotate-right>", "Rotate selection contents right" },
+	{ "%", "<vis-helix-select-all>", "Select entire file" },
+	{ "mm", "<vis-helix-match-bracket>", "Jump to matching bracket" },
+	{ "gw", "<vis-helix-goto-word>", "Show jump labels for visible words" },
+	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
+	{ "d", "<vis-operator-delete>", "Delete selection" },
+	{ "c", "<vis-operator-change>", "Change selection" },
+	{ ">", "<vis-operator-shift-right>", "Indent" },
+	{ "<", "<vis-operator-shift-left>", "Unindent" },
+	{ "/", "<vis-search-forward>", "Search forward" },
+	{ "?", "<vis-search-backward>", "Search backward" },
+	{ "n", "<vis-motion-search-repeat-forward>", "Next search match" },
+	{ "N", "<vis-motion-search-repeat-backward>", "Previous search match" },
+	{ "*", "<vis-helix-search-word-forward>", "Set search pattern to selection" },
+	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
+	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },
+	{ "K", "<vis-helix-keep-regex-prompt>", "Keep selections matching regex" },
+	{ "<M-K>", "<vis-helix-remove-regex-prompt>", "Remove selections matching regex" },
+	{ "\"", "<vis-register>", "Select register" },
+
+	{ ";", "<vis-helix-collapse-selection>", "Collapse to cursor" },
+
+	{ "0", "<vis-count-0>", "Count" },
+	{ "1", "<vis-count-1>", "Count" },
+	{ "2", "<vis-count-2>", "Count" },
+	{ "3", "<vis-count-3>", "Count" },
+	{ "4", "<vis-count-4>", "Count" },
+	{ "5", "<vis-count-5>", "Count" },
+	{ "6", "<vis-count-6>", "Count" },
+	{ "7", "<vis-count-7>", "Count" },
+	{ "8", "<vis-count-8>", "Count" },
+	{ "9", "<vis-count-9>", "Count" },
+}
+
+local visual = {
+	{ "<Escape>", "<vis-mode-normal>", "Return to normal mode" },
+	{ "h", "<vis-mode-normal><vis-motion-char-prev>", "Move left" },
+	{ "j", "<vis-mode-normal><vis-motion-line-down>", "Move down" },
+	{ "k", "<vis-mode-normal><vis-motion-line-up>", "Move up" },
+	{ "l", "<vis-mode-normal><vis-motion-char-next>", "Move right" },
+	{ "<Left>", "<vis-mode-normal><vis-motion-char-prev>", "Move left" },
+	{ "<Down>", "<vis-mode-normal><vis-motion-line-down>", "Move down" },
+	{ "<Up>", "<vis-mode-normal><vis-motion-line-up>", "Move up" },
+	{ "<Right>", "<vis-mode-normal><vis-motion-char-next>", "Move right" },
+	{ "w", "<vis-motion-word-start-next>", "Select next word start" },
+	{ "b", "<vis-motion-word-start-prev>", "Select previous word start" },
+	{ "e", "<vis-motion-word-end-next>", "Select next word end" },
+	{ "W", "<vis-motion-bigword-start-next>", "Select next WORD start" },
+	{ "B", "<vis-motion-bigword-start-prev>", "Select previous WORD start" },
+	{ "E", "<vis-motion-bigword-end-next>", "Select next WORD end" },
+	{ "f", "<vis-motion-to-line-right>", "Select to next char in line" },
+	{ "t", "<vis-motion-till-line-right>", "Select till next char in line" },
+	{ "F", "<vis-motion-to-line-left>", "Select to previous char in line" },
+	{ "T", "<vis-motion-till-line-left>", "Select till previous char in line" },
+	{ "gg", "<vis-mode-normal><vis-motion-line-first>", "Go to first line" },
+	{ "G", "<vis-mode-normal><vis-motion-line-last>", "Go to last line" },
+	{ "ge", "<vis-mode-normal><vis-motion-line-last>", "Go to end of file" },
+	{ "gs", "<vis-mode-normal><vis-motion-line-start>", "Go to first non-blank" },
+	{ "gh", "<vis-mode-normal><vis-motion-line-begin>", "Go to line start" },
+	{ "gl", "<vis-mode-normal><vis-motion-line-end>", "Go to line end" },
+	{ "gt", "<vis-helix-goto-top>", "Go to viewport top" },
+	{ "gc", "<vis-helix-goto-center>", "Go to viewport center" },
+	{ "gb", "<vis-helix-goto-bottom>", "Go to viewport bottom" },
+	{ "<Home>", "<vis-mode-normal><vis-motion-line-begin>", "Go to line start" },
+	{ "<End>", "<vis-mode-normal><vis-motion-line-end>", "Go to line end" },
+	{ "n", "<vis-motion-search-repeat-forward>", "Select next search match" },
+	{ "N", "<vis-motion-search-repeat-backward>", "Select previous search match" },
+	{ "*", "<vis-motion-search-word-forward>", "Select next word match" },
+	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
+	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },
+	{ "K", "<vis-helix-keep-regex-prompt>", "Keep selections matching regex" },
+	{ "<M-K>", "<vis-helix-remove-regex-prompt>", "Remove selections matching regex" },
+	{ ":", "<vis-prompt-show>", "Open command prompt" },
+	{ ">", "<vis-operator-shift-right>", "Indent selection" },
+	{ "<", "<vis-operator-shift-left>", "Unindent selection" },
+	{ "<Space>w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ "<Space>q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ " q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " f", "<vis-picker-files>", "Open file picker" },
+	{ " b", "<vis-picker-buffers>", "Open buffer picker" },
+	{ "u", "<vis-undo>", "Undo" },
+	{ "U", "<vis-redo>", "Redo" },
+	{ ";", "<vis-helix-collapse-selection>", "Collapse to cursor" },
+	{ "x", "<vis-mode-normal><vis-mode-visual-linewise>", "Switch to line selection" },
+	{ "X", "<vis-mode-normal><vis-mode-visual-linewise>", "Switch to line selection" },
+	{ "d", "<vis-operator-delete>", "Delete selection" },
+	{ "c", "<vis-operator-change>", "Change selection" },
+	{ "y", "<vis-operator-yank>", "Yank selection" },
+	{ "Y", "<vis-helix-yank-joined>", "Join and yank selections" },
+	{ "p", "<vis-put-after>", "Paste after" },
+	{ "P", "<vis-put-before>", "Paste before" },
+	{ "C", "<vis-selection-new-lines-below>", "Copy selection to next line" },
+	{ "<M-C>", "<vis-selection-new-lines-above>", "Copy selection to previous line" },
+	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
+	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
+	{ "&", "<vis-selections-align>", "Align selections" },
+	{ "(", "<vis-helix-rotate-selection-left>", "Rotate primary selection backward" },
+	{ ")", "<vis-helix-rotate-selection-right>", "Rotate primary selection forward" },
+	{ "<M-(>", "<vis-selections-rotate-left>", "Rotate selection contents left" },
+	{ "<M-)>", "<vis-selections-rotate-right>", "Rotate selection contents right" },
+	{ "%", "<vis-helix-select-all>", "Select entire file" },
+	{ "mm", "<vis-helix-match-bracket>", "Jump to matching bracket" },
+	{ "gw", "<vis-helix-goto-word>", "Show jump labels for visible words" },
+	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
+}
+
+local visual_line = {
+	{ "<Escape>", "<vis-mode-normal>", "Return to normal mode" },
+	{ "j", "<vis-motion-line-down>", "Extend selection down" },
+	{ "k", "<vis-motion-line-up>", "Extend selection up" },
+	{ "<Down>", "<vis-motion-line-down>", "Extend selection down" },
+	{ "<Up>", "<vis-motion-line-up>", "Extend selection up" },
+	{ "x", "<vis-motion-line-down>", "Extend selection down" },
+	{ "X", "<vis-motion-line-up>", "Extend selection up" },
+	{ "d", "<vis-operator-delete>", "Delete selection" },
+	{ "c", "<vis-operator-change>", "Change selection" },
+	{ "y", "<vis-operator-yank>", "Yank selection" },
+	{ "Y", "<vis-helix-yank-joined>", "Join and yank selections" },
+	{ "p", "<vis-put-after>", "Paste after" },
+	{ "P", "<vis-put-before>", "Paste before" },
+	{ ":", "<vis-prompt-show>", "Open command prompt" },
+	{ ">", "<vis-operator-shift-right>", "Indent selection" },
+	{ "<", "<vis-operator-shift-left>", "Unindent selection" },
+	{ "<Space>w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ "<Space>q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " w", "<vis-prompt-show>w<Enter>", "Write file" },
+	{ " q", "<vis-prompt-show>q<Enter>", "Quit window" },
+	{ " f", "<vis-picker-files>", "Open file picker" },
+	{ " b", "<vis-picker-buffers>", "Open buffer picker" },
+	{ "u", "<vis-undo>", "Undo" },
+	{ "U", "<vis-redo>", "Redo" },
+	{ "C", "<vis-selection-new-lines-below>", "Copy selection to next line" },
+	{ "<M-C>", "<vis-selection-new-lines-above>", "Copy selection to previous line" },
+	{ ",", "<vis-selections-remove-all>", "Keep primary selection" },
+	{ "<M-,>", "<vis-selections-remove-last>", "Remove primary selection" },
+	{ "&", "<vis-selections-align>", "Align selections" },
+	{ "(", "<vis-helix-rotate-selection-left>", "Rotate primary selection backward" },
+	{ ")", "<vis-helix-rotate-selection-right>", "Rotate primary selection forward" },
+	{ "<M-(>", "<vis-selections-rotate-left>", "Rotate selection contents left" },
+	{ "<M-)>", "<vis-selections-rotate-right>", "Rotate selection contents right" },
+	{ "%", "<vis-helix-select-all>", "Select entire file" },
+	{ "mm", "<vis-helix-match-bracket>", "Jump to matching bracket" },
+	{ "gw", "<vis-helix-goto-word>", "Show jump labels for visible words" },
+	{ "<M-s>", "<vis-helix-split-selection-lines>", "Split selections on newlines" },
+	{ "s", "<vis-helix-select-regex-prompt>", "Select regex matches" },
+	{ "S", "<vis-helix-split-regex-prompt>", "Split selections by regex matches" },
+	{ "K", "<vis-helix-keep-regex-prompt>", "Keep selections matching regex" },
+	{ "<M-K>", "<vis-helix-remove-regex-prompt>", "Remove selections matching regex" },
+}
+
+local insert = {
+	{ "<Escape>", "<vis-mode-normal>", "Return to normal mode" },
+	{ "<C-h>", "<vis-delete-char-prev>", "Delete previous char" },
+	{ "<Backspace>", "<vis-delete-char-prev>", "Delete previous char" },
+	{ "<Delete>", "<vis-delete-char-next>", "Delete next char" },
+	{ "<C-d>", "<vis-delete-char-next>", "Delete next char" },
+	{ "<C-w>", "<vis-delete-word-prev>", "Delete previous word" },
+	{ "<C-u>", "<vis-delete-line-begin>", "Delete to line start" },
+	{ "<C-k>", "<Escape><vis-operator-delete><vis-motion-line-end><vis-mode-insert>", "Delete to line end" },
+	{ "<Enter>", "<vis-insert-newline>", "Insert line break" },
+	{ "<C-j>", "<vis-insert-newline>", "Insert line break" },
+	{ "<Tab>", "<vis-insert-tab>", "Insert tab" },
+	{ "<Left>", "<vis-motion-char-prev>", "Move left" },
+	{ "<Right>", "<vis-motion-char-next>", "Move right" },
+	{ "<Up>", "<vis-motion-line-up>", "Move up" },
+	{ "<Down>", "<vis-motion-line-down>", "Move down" },
+	{ "<Home>", "<vis-motion-line-start>", "Move to line start" },
+	{ "<End>", "<vis-motion-line-end>", "Move to line end" },
+	{ "<PageUp>", "<vis-window-page-up>", "Page up" },
+	{ "<PageDown>", "<vis-window-page-down>", "Page down" },
+}
+
+local function map_prefixed(manager, win, mode, prefix, mappings)
+	for _, mapping in ipairs(mappings) do
+		local key, rhs, help = prefix .. mapping[1], mapping[2], mapping[3]
+		if not manager.bind(win, mode, key, rhs, help) then
+			return false
+		end
+	end
+	return true
+end
+
+local function map_all(manager, win, mode, mappings)
+	for _, mapping in ipairs(mappings) do
+		local key, rhs, help = mapping[1], mapping[2], mapping[3]
+		if not manager.bind(win, mode, key, rhs, help) then
+			return false
+		end
+	end
+	return true
+end
+
+return {
+	apply = function(manager, win)
+		vis:command("set ignorecase on")
+		win:style_define(win.STYLE_JUMP_LABEL, "fore:black,back:yellow,bold")
+		if not manager.shadow_defaults(win) then
+			return false
+		end
+		return map_all(manager, win, vis.modes.NORMAL, normal) and
+		       map_all(manager, win, vis.modes.VISUAL, visual) and
+		       map_all(manager, win, vis.modes.VISUAL_LINE, visual_line) and
+		       map_all(manager, win, vis.modes.INSERT, insert) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "ms", surround) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "ms", surround) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ms", surround) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "md", surround_delete) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "md", surround_delete) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "md", surround_delete) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "mr", surround_replace) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "mr", surround_replace) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "mr", surround_replace) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "mi", textobjects_inner) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "mi", textobjects_inner) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "mi", textobjects_inner) and
+	       map_prefixed(manager, win, vis.modes.NORMAL, "ma", textobjects_outer) and
+	       map_prefixed(manager, win, vis.modes.VISUAL, "ma", textobjects_outer) and
+	       map_prefixed(manager, win, vis.modes.VISUAL_LINE, "ma", textobjects_outer)
+	end,
+}

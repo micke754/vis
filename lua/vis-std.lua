@@ -96,6 +96,17 @@ vis.events.subscribe(vis.events.WIN_STATUS, function(win)
 	local selection = win.selection
 
 	local mode = modes[vis.mode]
+	if vis.helix_keymap then
+		if vis.helix_select then
+			mode = 'SEL'
+		elseif vis.mode == vis.modes.NORMAL then
+			mode = 'NOR'
+		elseif vis.mode == vis.modes.INSERT then
+			mode = 'INS'
+		end
+	elseif vis.helix_select then
+		mode = 'SEL'
+	end
 	if mode ~= '' and vis.win == win then
 		table.insert(left_parts, mode)
 	end
@@ -132,6 +143,10 @@ vis.events.subscribe(vis.events.WIN_STATUS, function(win)
 	local right = ' ' .. table.concat(right_parts, " « ") .. ' '
 	win:status(left, right);
 end)
+
+-- keymap profiles
+
+require('keymaps')
 
 -- default plugins
 

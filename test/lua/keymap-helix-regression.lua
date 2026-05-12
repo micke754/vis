@@ -1,0 +1,94 @@
+require('keymaps/init')
+
+local win = vis.win
+local file = win.file
+
+local function content()
+	return file:content(0, file.size)
+end
+
+local function reset(data, pos)
+	file:delete(0, file.size)
+	file:insert(0, data)
+	win.selection.pos = pos or 0
+	win.selection.anchored = false
+	vis:command("set keymap helix")
+end
+
+describe("helix keymap regressions", function()
+	after_each(function()
+		vis:command("set keymap vim")
+	end)
+
+	it("normal-mode w selects current word for delete", function()
+		reset("This string-test_test.test\n")
+		vis:feedkeys("wd")
+		assert.are.same("string-test_test.test\n", content())
+	end)
+
+	it("w separates punctuation token from following word", function()
+		reset("one-of-a-kind\n")
+		vis:feedkeys("wwd")
+		assert.are.same("oneof-a-kind\n", content())
+	end)
+
+	it("ms adds paren surround to selection", function()
+		reset("word\n")
+		vis:feedkeys("wms(")
+		assert.are.same("(word)\n", content())
+	end)
+
+	it("ms adds quote surround to multicursor selections", function()
+		reset("one\ntwo\n")
+		vis:feedkeys("Cwms\"")
+		assert.are.same("\"one\"\n\"two\"\n", content())
+	end)
+
+	it("md deletes paren surround", function()
+		reset("(word)\n", 1)
+		vis:feedkeys("wmd(")
+		assert.are.same("word\n", content())
+	end)
+
+	it("mr replaces paren surround", function()
+		reset("(word)\n", 1)
+		vis:feedkeys("wmr({")
+		assert.are.same("{word}\n", content())
+	end)
+
+	it("miw selects inner word", function()
+		reset("word next\n")
+		vis:feedkeys("miwd")
+		assert.are.same(" next\n", content())
+	end)
+
+	it("maw selects around word", function()
+		reset("word next\n")
+		vis:feedkeys("mawd")
+		assert.are.same("next\n", content())
+	end)
+
+	it("mi quote selects inside quotes", function()
+		reset("\"word\"\n", 1)
+		vis:feedkeys("mi\"d")
+		assert.are.same("\"\"\n", content())
+	end)
+	it("mm jumps to matching bracket", function()
+		reset("(word)\n", 1)
+		vis:feedkeys("mm")
+		assert.are.same(5, win.selection.pos)
+		end)
+
+	it("mm jumps from closing to opening bracket", function()
+		reset("(word)\n", 5)
+		vis:feedkeys("mm")
+		assert.are.same(0, win.selection.pos)
+	end)
+
+	it("mm jumps from opening to closing bracket", function()
+		reset("(word)\n", 0)
+		vis:feedkeys("mm")
+		assert.are.same(5, win.selection.pos)
+	end)
+end)
+

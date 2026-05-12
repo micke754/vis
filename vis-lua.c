@@ -1431,6 +1431,16 @@ static int vis_index(lua_State *L) {
 			return 1;
 		}
 
+		if (strcmp(key, "helix_select") == 0) {
+			lua_pushboolean(L, vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select);
+			return 1;
+		}
+
+		if (strcmp(key, "helix_keymap") == 0) {
+			lua_pushboolean(L, vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX);
+			return 1;
+		}
+
 		if (strcmp(key, "input_queue") == 0) {
 			lua_pushstring(L, buffer_content0(&vis->input_queue));
 			return 1;
@@ -3324,6 +3334,7 @@ static void vis_lua_init(Vis *vis)
 		{ UI_STYLE_INFO,              "STYLE_INFO"              },
 		{ UI_STYLE_EOF,               "STYLE_EOF"               },
 		{ UI_STYLE_WHITESPACE,        "STYLE_WHITESPACE"        },
+		{ UI_STYLE_JUMP_LABEL,       "STYLE_JUMP_LABEL"        },
 	};
 
 	for (size_t i = 0; i < LENGTH(styles); i++) {
@@ -3385,6 +3396,7 @@ static void vis_lua_init(Vis *vis)
 		{ VIS_MODE_VISUAL_LINE,      "VISUAL_LINE"      },
 		{ VIS_MODE_INSERT,           "INSERT"           },
 		{ VIS_MODE_REPLACE,          "REPLACE"          },
+		{ VIS_MODE_PICKER,            "PICKER"           },
 	};
 	for (size_t i = 0; i < LENGTH(modes); i++) {
 		lua_pushinteger(L, modes[i].id);

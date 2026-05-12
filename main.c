@@ -1,4 +1,5 @@
 #include "vis.c"
+#include <sys/stat.h>
 
 static Vis vis[1];
 
@@ -13,7 +14,17 @@ static Vis vis[1];
 	X(ka_call,                            REDRAW,                           .f = vis_redraw,                          "vis-redraw",                          "Redraw current editor content") \
 	X(ka_call,                            WINDOW_NEXT,                      .f = vis_window_next,                     "vis-window-next",                     "Focus next window") \
 	X(ka_call,                            WINDOW_PREV,                      .f = vis_window_prev,                     "vis-window-prev",                     "Focus previous window") \
-	X(ka_count,                           COUNT,                            0,                                        "vis-count",                           "Count specifier") \
+	X(ka_count,                           COUNT,                            .i = -1,                                 "vis-count",                           "Count specifier") \
+	X(ka_count,                           COUNT_0,                          .i = 0,                                  "vis-count-0",                         "Count specifier 0") \
+	X(ka_count,                           COUNT_1,                          .i = 1,                                  "vis-count-1",                         "Count specifier 1") \
+	X(ka_count,                           COUNT_2,                          .i = 2,                                  "vis-count-2",                         "Count specifier 2") \
+	X(ka_count,                           COUNT_3,                          .i = 3,                                  "vis-count-3",                         "Count specifier 3") \
+	X(ka_count,                           COUNT_4,                          .i = 4,                                  "vis-count-4",                         "Count specifier 4") \
+	X(ka_count,                           COUNT_5,                          .i = 5,                                  "vis-count-5",                         "Count specifier 5") \
+	X(ka_count,                           COUNT_6,                          .i = 6,                                  "vis-count-6",                         "Count specifier 6") \
+	X(ka_count,                           COUNT_7,                          .i = 7,                                  "vis-count-7",                         "Count specifier 7") \
+	X(ka_count,                           COUNT_8,                          .i = 8,                                  "vis-count-8",                         "Count specifier 8") \
+	X(ka_count,                           COUNT_9,                          .i = 9,                                  "vis-count-9",                         "Count specifier 9") \
 	X(ka_delete,                          DELETE_CHAR_NEXT,                 .i = VIS_MOVE_CHAR_NEXT,                  "vis-delete-char-next",                "Delete the next character") \
 	X(ka_delete,                          DELETE_CHAR_PREV,                 .i = VIS_MOVE_CHAR_PREV,                  "vis-delete-char-prev",                "Delete the previous character") \
 	X(ka_delete,                          DELETE_LINE_BEGIN,                .i = VIS_MOVE_LINE_BEGIN,                 "vis-delete-line-begin",               "Delete until the start of the current line") \
@@ -71,6 +82,22 @@ static Vis vis[1];
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_BACKWARD,    .i = VIS_MOVE_SEARCH_REPEAT_BACKWARD,     "vis-motion-search-repeat-backward",   "Move cursor to previous match in backward direction") \
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_FORWARD,     .i = VIS_MOVE_SEARCH_REPEAT_FORWARD,      "vis-motion-search-repeat-forward",    "Move cursor to next match in forward direction") \
 	X(ka_movement,                        CURSOR_SEARCH_REPEAT_REVERSE,     .i = VIS_MOVE_SEARCH_REPEAT_REVERSE,      "vis-motion-search-repeat-reverse",    "Move cursor to next match in opposite direction") \
+	X(ka_helix_search_word,               HELIX_SEARCH_WORD_FORWARD,        .i = +1,                                 "vis-helix-search-word-forward",       "Set search pattern to word under cursor") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_PAREN,         .s = "()",                                "vis-helix-surround-add-paren",       "Surround selections with ()") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_BRACKET,       .s = "[]",                                "vis-helix-surround-add-bracket",     "Surround selections with []") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_BRACE,         .s = "{}",                                "vis-helix-surround-add-brace",       "Surround selections with {}") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_ANGLE,         .s = "<>",                                "vis-helix-surround-add-angle",       "Surround selections with <>") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_QUOTE,         .s = "\"\"",                              "vis-helix-surround-add-quote",       "Surround selections with quotes") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_SINGLE_QUOTE,  .s = "''",                                "vis-helix-surround-add-single-quote", "Surround selections with single quotes") \
+	X(ka_helix_surround_add,              HELIX_SURROUND_ADD_BACKTICK,      .s = "``",                                "vis-helix-surround-add-backtick",    "Surround selections with backticks") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_PAREN,      .s = "(",                                 "vis-helix-surround-delete-paren",    "Delete surrounding ()") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_BRACKET,    .s = "[",                                 "vis-helix-surround-delete-bracket",  "Delete surrounding []") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_BRACE,      .s = "{",                                 "vis-helix-surround-delete-brace",    "Delete surrounding {}") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_ANGLE,      .s = "<",                                 "vis-helix-surround-delete-angle",    "Delete surrounding <>") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_QUOTE,      .s = "\"",                                "vis-helix-surround-delete-quote",    "Delete surrounding quotes") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_SINGLE_QUOTE, .s = "'",                                "vis-helix-surround-delete-single-quote", "Delete surrounding single quotes") \
+	X(ka_helix_surround_delete,           HELIX_SURROUND_DELETE_BACKTICK,   .s = "`",                                 "vis-helix-surround-delete-backtick", "Delete surrounding backticks") \
+	X(ka_helix_yank_joined,               HELIX_YANK_JOINED,                0,                                        "vis-helix-yank-joined",              "Join and yank selections") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_BACKWARD,      .i = VIS_MOVE_SEARCH_WORD_BACKWARD,       "vis-motion-search-word-backward",     "Move cursor to previous occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SEARCH_WORD_FORWARD,       .i = VIS_MOVE_SEARCH_WORD_FORWARD,        "vis-motion-search-word-forward",      "Move cursor to next occurrence of the word under cursor") \
 	X(ka_movement,                        CURSOR_SENTENCE_NEXT,             .i = VIS_MOVE_SENTENCE_NEXT,              "vis-motion-sentence-next",            "Move cursor sentence forward") \
@@ -93,6 +120,41 @@ static Vis vis[1];
 	X(ka_movement_key,                    TO_LINE_RIGHT,                    .i = VIS_MOVE_TO_LINE_RIGHT,              "vis-motion-to-line-right",            "To the first occurrence of character to the right on the current line") \
 	X(ka_movement_key,                    TO_RIGHT,                         .i = VIS_MOVE_TO_RIGHT,                   "vis-motion-to-right",                 "To the first occurrence of character to the right") \
 	X(ka_nop,                             NOP,                              0,                                        "vis-nop",                             "Ignore key, do nothing") \
+	X(ka_helix_collapse,                  HELIX_COLLAPSE,                   0,                                        "vis-helix-collapse-selection",        "Collapse Helix selection") \
+	X(ka_helix_line_select,               HELIX_LINE_SELECT,                .b = true,                                "vis-helix-line-select",               "Select Helix line") \
+	X(ka_helix_line_select,               HELIX_LINE_SELECT_CURRENT,        .b = false,                               "vis-helix-line-select-current",       "Select current Helix line") \
+	X(ka_helix_rotate_selection,           HELIX_ROTATE_SELECTION_LEFT,      .i = -1,                                  "vis-helix-rotate-selection-left",     "Rotate primary selection backward") \
+	X(ka_helix_rotate_selection,           HELIX_ROTATE_SELECTION_RIGHT,     .i = +1,                                  "vis-helix-rotate-selection-right",    "Rotate primary selection forward") \
+	X(ka_helix_select_all,                 HELIX_SELECT_ALL,                 0,                                        "vis-helix-select-all",                "Select entire file") \
+	X(ka_helix_select_split_lines,         HELIX_SPLIT_LINES,                0,                                        "vis-helix-split-selection-lines",     "Split selections on newlines") \
+	X(ka_helix_regex_prompt,              HELIX_SELECT_REGEX_PROMPT,        .i = HELIX_PROMPT_SELECT_REGEX,            "vis-helix-select-regex-prompt",       "Select regex matches") \
+	X(ka_helix_regex_prompt,              HELIX_SPLIT_REGEX_PROMPT,         .i = HELIX_PROMPT_SPLIT_REGEX,             "vis-helix-split-regex-prompt",        "Split selections by regex matches") \
+	X(ka_helix_regex_prompt,              HELIX_KEEP_REGEX_PROMPT,          .i = HELIX_PROMPT_KEEP_REGEX,              "vis-helix-keep-regex-prompt",         "Keep selections matching regex") \
+	X(ka_helix_regex_prompt,              HELIX_REMOVE_REGEX_PROMPT,        .i = HELIX_PROMPT_REMOVE_REGEX,            "vis-helix-remove-regex-prompt",       "Remove selections matching regex") \
+	X(ka_helix_select_toggle,             HELIX_SELECT_TOGGLE,              0,                                        "vis-helix-select-toggle",             "Toggle Helix select mode") \
+	X(ka_helix_match_bracket,            HELIX_MATCH_BRACKET,              0,                                        "vis-helix-match-bracket",             "Jump to matching bracket") \
+	X(ka_helix_goto_word,                 HELIX_GOTO_WORD,                  0,                                        "vis-helix-goto-word",                 "Show jump labels for visible words") \
+	X(ka_helix_replace_char,              HELIX_REPLACE_CHAR,                0,                                        "vis-helix-replace-char",              "Replace selection with character") \
+	X(ka_helix_replace_with_yanked,       HELIX_REPLACE_WITH_YANKED,         0,                                        "vis-helix-replace-with-yanked",       "Replace selection with yanked text") \
+	X(ka_helix_insert,                   HELIX_INSERT,                      0,                                        "vis-helix-insert",                    "Insert before selection") \
+	X(ka_helix_append,                   HELIX_APPEND,                      0,                                        "vis-helix-append",                    "Append after selection") \
+	X(ka_helix_goto_viewport,             HELIX_GOTO_VIEWPORT_TOP,          .i = 0,                                   "vis-helix-goto-top",                  "Go to top of viewport") \
+	X(ka_helix_goto_viewport,             HELIX_GOTO_VIEWPORT_CENTER,       .i = 1,                                   "vis-helix-goto-center",               "Go to center of viewport") \
+	X(ka_helix_goto_viewport,             HELIX_GOTO_VIEWPORT_BOTTOM,       .i = 2,                                   "vis-helix-goto-bottom",                "Go to bottom of viewport") \
+	X(ka_helix_repeat,                   HELIX_REPEAT,                      0,                                        "vis-helix-repeat",                     "Repeat last change") \
+	X(ka_helix_increment,                 HELIX_INCREMENT,                  .i = +1,                                  "vis-helix-increment",                  "Increment number under cursor") \
+	X(ka_helix_increment,                 HELIX_DECREMENT,                  .i = -1,                                  "vis-helix-decrement",                  "Decrement number under cursor") \
+	X(ka_helix_openline,                  HELIX_OPEN_LINE_BELOW,            .i = +1,                                  "vis-helix-open-below",                 "Open line below (Helix)") \
+	X(ka_helix_openline,                  HELIX_OPEN_LINE_ABOVE,            .i = -1,                                  "vis-helix-open-above",                  "Open line above (Helix)") \
+	X(ka_picker_down,                    PICKER_DOWN,                      0,                                        "vis-picker-down",                      "Picker move down") \
+	X(ka_picker_up,                      PICKER_UP,                        0,                                        "vis-picker-up",                        "Picker move up") \
+	X(ka_picker_accept,                  PICKER_ACCEPT,                    0,                                        "vis-picker-accept",                    "Picker accept selection") \
+	X(ka_picker_cancel,                  PICKER_CANCEL,                    0,                                        "vis-picker-cancel",                    "Picker cancel") \
+	X(ka_picker_backspace,               PICKER_BACKSPACE,                 0,                                        "vis-picker-backspace",                 "Picker delete filter char") \
+	X(ka_picker_delete_word,             PICKER_DELETE_WORD,               0,                                        "vis-picker-delete-word",               "Picker delete filter word") \
+	X(ka_picker_clear_filter,           PICKER_CLEAR_FILTER,              0,                                        "vis-picker-clear-filter",              "Picker clear filter") \
+	X(ka_picker_files,                   PICKER_FILES,                     0,                                        "vis-picker-files",                     "Open file picker") \
+	X(ka_picker_buffers,                 PICKER_BUFFERS,                   0,                                        "vis-picker-buffers",                   "Open buffer picker") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \
 	X(ka_openline,                        OPEN_LINE_BELOW,                  .i = +1,                                  "vis-open-line-below",                 "Begin a new line below the cursor") \
@@ -353,10 +415,27 @@ static KEY_ACTION_FN(ka_selections_align_indent)
 static KEY_ACTION_FN(ka_selections_clear)
 {
 	View *view = vis_view(vis);
-	if (view->selection_count > 1)
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && view->selection_count > 1) {
+		Selection *primary = view_selections_primary_get(view);
+		Filerange keep = primary ? view_selections_get(primary) : text_range_empty();
+		bool anchored = primary && primary->anchored;
+		size_t pos = primary ? view_cursors_pos(primary) : view_cursor_get(view);
 		view_selections_dispose_all(view);
-	else
+		if (text_range_valid(&keep)) {
+			Selection *s = view_selections_new(view, pos);
+			if (s) {
+				view_selections_set(s, &keep);
+				s->anchored = anchored;
+				view_selections_primary_set(s);
+			}
+		} else if (!view->selection_count) {
+			view_selections_new(view, pos);
+		}
+	} else if (view->selection_count > 1) {
+		view_selections_dispose_all(view);
+	} else {
 		view_selection_clear(view_selections_primary_get(view));
+	}
 	return keys;
 }
 
@@ -495,6 +574,8 @@ static KEY_ACTION_FN(ka_selections_remove_column_except)
 static KEY_ACTION_FN(ka_wscroll)
 {
 	View *view = vis_view(vis);
+	if (!vis->mode->visual && !vis->helix_select && view->selection->anchored)
+		view_selection_clear(view->selection);
 	int count = vis->action.count;
 	switch (arg->i) {
 	case -PAGE:
@@ -525,6 +606,8 @@ static KEY_ACTION_FN(ka_wscroll)
 static KEY_ACTION_FN(ka_wslide)
 {
 	View *view = vis_view(vis);
+	if (!vis->mode->visual && !vis->helix_select && view->selection->anchored)
+		view_selection_clear(view->selection);
 	int count = vis->action.count;
 	if (count == VIS_COUNT_UNKNOWN)
 		count = arg->i < 0 ? -arg->i : arg->i;
@@ -852,7 +935,7 @@ static KEY_ACTION_FN(ka_replace)
 
 static KEY_ACTION_FN(ka_count)
 {
-	int digit = keys[-1] - '0';
+	int digit = arg->i >= 0 ? arg->i : keys[-1] - '0';
 	int count = VIS_COUNT_DEFAULT(vis->action.count, 0);
 	if (0 <= digit && digit <= 9) {
 		if (digit == 0 && count == 0)
@@ -904,6 +987,8 @@ static KEY_ACTION_FN(ka_movement)
 
 static KEY_ACTION_FN(ka_text_object)
 {
+	if (helix_text_object(vis, arg))
+		return keys;
 	vis_textobject(vis, arg->i);
 	return keys;
 }
@@ -1020,6 +1105,7 @@ static KEY_ACTION_FN(ka_prompt_show)
 	vis_prompt_show(vis, arg->s);
 	return keys;
 }
+
 
 static KEY_ACTION_FN(ka_insert_verbatim)
 {
@@ -1150,6 +1236,10 @@ static KEY_ACTION_FN(ka_join)
 
 static KEY_ACTION_FN(ka_normalmode_escape)
 {
+	if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select) {
+		vis->helix_select = false;
+		return keys;
+	}
 	if (vis->action.count == VIS_COUNT_UNKNOWN)
 		ka_selections_clear(vis, keys, arg);
 	else
@@ -1360,8 +1450,22 @@ int main(int argc, char *argv[])
 		} else if (argv[i][0] == '+' && !end_of_options) {
 			cmd = argv[i] + (argv[i][1] == '/' || argv[i][1] == '?');
 			continue;
-		} else if (!vis_window_new(vis, argv[i])) {
-			vis_die(vis, "Can not load '%s': %s\n", argv[i], strerror(errno));
+		} else {
+			/* Check if argument is a directory - open file picker instead */
+			struct stat st;
+			bool is_dir = (stat(argv[i], &st) == 0 && S_ISDIR(st.st_mode));
+			if (is_dir) {
+				/* cd to the directory and open empty buffer with picker */
+				if (chdir(argv[i]) != 0) {
+					vis_die(vis, "Can not change to directory '%s': %s\n", argv[i], strerror(errno));
+				}
+				if (!vis_window_new(vis, NULL))
+					vis_die(vis, "Can not create empty buffer\n");
+				/* Open file picker directly (must happen after VIS_EVENT_START) */
+				vis->picker_open_at_start = true;
+			} else if (!vis_window_new(vis, argv[i])) {
+				vis_die(vis, "Can not load '%s': %s\n", argv[i], strerror(errno));
+			}
 		}
 		win_created = true;
 		if (cmd) {

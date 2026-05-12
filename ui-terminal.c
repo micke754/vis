@@ -225,7 +225,7 @@ static void ui_window_draw(Win *win) {
 	Cell *cells = ui->cells + y * ui->width;
 	if (x + sidebar_width + view_width > ui->width)
 		view_width = ui->width - x - sidebar_width;
-	for (const Line *l = line; l; l = l->next, y++) {
+for (const Line *l = line; l; l = l->next, y++) {
 		if (sidebar) {
 			if (!l->lineno || !l->len || l->lineno == prev_lineno) {
 				memset(buf, ' ', sizeof(buf));
@@ -374,6 +374,7 @@ void ui_draw(Ui *tui) {
 	if (tui->info[0])
 		ui_draw_string(tui, 0, tui->height-1, tui->info, 0, UI_STYLE_INFO);
 	vis_event_emit(tui->vis, VIS_EVENT_UI_DRAW);
+	picker_draw(tui->vis);
 	ui_term_backend_blit(tui);
 }
 

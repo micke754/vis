@@ -69,6 +69,8 @@ void window_status_update(Vis *vis, Win *win) {
 	bool focused = vis->win == win;
 	const char *filename = file_name_get(file);
 	const char *mode = vis->mode->status;
+	if (focused && vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && vis->helix_select)
+		mode = "SELECT";
 
 	if (focused && mode)
 		strcpy(left_parts[left_count++], mode);
@@ -1246,6 +1248,23 @@ bool view_selections_set(Selection *s, Filerange r)
 	return true;
 }
 
+bool view_selections_set_directed(Selection *s, Filerange r, bool cursor_at_start) {
+	if (!view_selections_set(s, r))
+		return false;
+	s->anchored = true;
+	if (cursor_at_start && view_cursors_pos(s) != r.start)
+		view_selections_flip(s);
+	else if (!cursor_at_start) {
+		Text *txt = s->view->text;
+		size_t end = r.end > text_size(txt) ? text_size(txt) : r.end;
+		if (r.start != end)
+			end = text_char_prev(txt, end);
+		if (view_cursors_pos(s) != end)
+			view_selections_flip(s);
+	}
+	return true;
+}
+
 Filerange view_regions_restore(View *view, SelectionRegion s)
 {
 	Text *txt = view->text;
@@ -1365,4 +1384,23 @@ void win_style(Win *win, enum UiStyle style, size_t start, size_t end, bool keep
 		}
 		col = 0;
 	} while (pos <= end && (line = line->next));
+}
+
+void view_jump_labels_set(View *view, JumpLabel *labels, int count) {
+	free(view->jump_labels);
+	view->jump_labels = NULL;
+	view->jump_labels_count = 0;
+	if (!labels || count <= 0)
+		return;
+	view->jump_labels = malloc(count * sizeof(JumpLabel));
+	if (!view->jump_labels)
+		return;
+	memcpy(view->jump_labels, labels, count * sizeof(JumpLabel));
+	view->jump_labels_count = count;
+}
+
+void view_jump_labels_clear(View *view) {
+	free(view->jump_labels);
+	view->jump_labels = NULL;
+	view->jump_labels_count = 0;
 }
