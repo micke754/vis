@@ -1471,8 +1471,8 @@ int main(int argc, char *argv[])
 				}
 				if (!vis_window_new(vis, NULL))
 					vis_die(vis, "Can not create empty buffer\n");
-				/* Open file picker directly (must happen after VIS_EVENT_START) */
-				vis->picker_open_at_start = true;
+				/* Open file picker directly (must happen after VIS_EVENT_START). */
+				vis->picker_open_at_start = PICKER_START_CURRENT;
 			} else if (!vis_window_new(vis, argv[i])) {
 				vis_die(vis, "Can not load '%s': %s\n", argv[i], strerror(errno));
 			}

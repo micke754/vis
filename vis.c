@@ -1448,8 +1448,10 @@ int vis_run(Vis *vis) {
 
 	/* If 'vis <directory>' was used, open the file picker */
 	if (vis->picker_open_at_start) {
-		vis->picker_open_at_start = false;
-		vis_keys_feed(vis, "<vis-picker-files>");
+		PickerStartMode picker_start = vis->picker_open_at_start;
+		vis->picker_open_at_start = PICKER_START_NONE;
+		vis_keys_feed(vis, picker_start == PICKER_START_CURRENT ?
+		              "<vis-picker-files-current>" : "<vis-picker-files>");
 	}
 
 	struct timespec idle = { .tv_nsec = 0 }, *timeout = NULL;

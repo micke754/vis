@@ -78,6 +78,9 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - Formatter/LSP implementation remains a follow-up branch; current Lua plugin setup stays as bridge only.
 - Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, Helix-like navigation keys, and current/split/vsplit open modes are implemented. Split opens use `Alt-s` / `Alt-v` because terminals commonly reserve `Ctrl-s` / `Ctrl-v`. Syntax-highlighted preview is not done yet.
 - Status: lightweight C/Lua/Python preview highlighting is implemented with terminal attributes. Full lexer/theme reuse is deferred to avoid a large Lua/C rendering bridge.
+- Fixed: directory CLI startup (`vis lua/`) uses current-directory picker instead of workspace-root picker.
+- Fixed: location picker jumps clear old selections and normalize mode before moving cursor.
+- Fixed: picker preview cache includes selected item and column so same-file jumplist entries refresh correctly.
 
 ## Backlog
 

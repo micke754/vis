@@ -63,6 +63,12 @@ typedef enum {
 	PICKER_OPEN_VERTICAL,
 } PickerOpenMode;
 
+typedef enum {
+	PICKER_START_NONE,
+	PICKER_START_WORKSPACE,
+	PICKER_START_CURRENT,
+} PickerStartMode;
+
 typedef struct PickerItem {
 	char *label;
 	char *path;
@@ -250,7 +256,7 @@ struct Vis {
 		enum VisMotion pending_selection;
 		int pending_count;
 	} helix_repeat;
-	bool picker_open_at_start;
+	PickerStartMode picker_open_at_start;
 	struct {
 		bool active;
 		char filter[256];
@@ -270,6 +276,8 @@ struct Vis {
 		char **lines;
 		int line_count;
 		int line;
+		int column;
+		int selected;
 		char *path;       /* currently previewed file path */
 	} picker_preview;
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */
