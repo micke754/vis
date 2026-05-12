@@ -677,6 +677,47 @@ static void picker_on_buffer_select(Vis *vis, const PickerItem *item, PickerOpen
 		picker_jump_to_item(vis, item);
 }
 
+static void picker_on_jumplist_select(Vis *vis, const PickerItem *item, PickerOpenMode open_mode) {
+	(void)open_mode;
+	picker_jump_to_item(vis, item);
+}
+
+void picker_open_jumplist(Vis *vis) {
+	Win *win = vis->win;
+	if (!win || !win->file)
+		return;
+	PickerItem *items = calloc(VIS_MARK_SET_LRU_COUNT, sizeof(PickerItem));
+	if (!items)
+		return;
+
+	int count = 0;
+	const char *path = win->file->name;
+	const char *name = path ? path : "[No Name]";
+	for (size_t i = 0; i < VIS_MARK_SET_LRU_COUNT; i++) {
+		SelectionRegionList *regions = &win->mark_set_lru_regions[i];
+		if (!regions->count)
+			continue;
+		Filerange range = view_regions_restore(&win->view, regions->data[0]);
+		if (!text_range_valid(range))
+			continue;
+		int line = (int)text_lineno_by_pos(win->file->text, range.start);
+		int column = text_line_char_get(win->file->text, range.start) + 1;
+		char label[4096];
+		snprintf(label, sizeof(label), "%s:%d:%d", name, line, column);
+		if (!picker_item_set(&items[count], PICKER_ITEM_LOCATION, label, path))
+			continue;
+		items[count].line = line;
+		items[count].column = column;
+		count++;
+	}
+
+	if (count == 0) {
+		picker_items_free(items, count);
+		return;
+	}
+	picker_open(vis, items, count, picker_on_jumplist_select);
+}
+
 /* Open buffer picker: list open buffers */
 void picker_open_buffers(Vis *vis) {
 	/* Count non-internal files */
@@ -720,6 +761,12 @@ static KEY_ACTION_FN(ka_picker_files_current) {
 static KEY_ACTION_FN(ka_picker_buffers) {
 	if (vis->picker.active) return keys;
 	picker_open_buffers(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_jumplist) {
+	if (vis->picker.active) return keys;
+	picker_open_jumplist(vis);
 	return keys;
 }
 
