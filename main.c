@@ -148,12 +148,18 @@ static Vis vis[1];
 	X(ka_helix_openline,                  HELIX_OPEN_LINE_ABOVE,            .i = -1,                                  "vis-helix-open-above",                  "Open line above (Helix)") \
 	X(ka_picker_down,                    PICKER_DOWN,                      0,                                        "vis-picker-down",                      "Picker move down") \
 	X(ka_picker_up,                      PICKER_UP,                        0,                                        "vis-picker-up",                        "Picker move up") \
+	X(ka_picker_page,                    PICKER_PAGE_DOWN,                 .i = +1,                                  "vis-picker-page-down",                 "Picker move page down") \
+	X(ka_picker_page,                    PICKER_PAGE_UP,                   .i = -1,                                  "vis-picker-page-up",                   "Picker move page up") \
+	X(ka_picker_edge,                    PICKER_FIRST,                     .i = -1,                                  "vis-picker-first",                     "Picker move to first item") \
+	X(ka_picker_edge,                    PICKER_LAST,                      .i = +1,                                  "vis-picker-last",                      "Picker move to last item") \
+	X(ka_picker_toggle_preview,          PICKER_TOGGLE_PREVIEW,            0,                                        "vis-picker-toggle-preview",            "Picker toggle preview") \
 	X(ka_picker_accept,                  PICKER_ACCEPT,                    0,                                        "vis-picker-accept",                    "Picker accept selection") \
 	X(ka_picker_cancel,                  PICKER_CANCEL,                    0,                                        "vis-picker-cancel",                    "Picker cancel") \
 	X(ka_picker_backspace,               PICKER_BACKSPACE,                 0,                                        "vis-picker-backspace",                 "Picker delete filter char") \
 	X(ka_picker_delete_word,             PICKER_DELETE_WORD,               0,                                        "vis-picker-delete-word",               "Picker delete filter word") \
 	X(ka_picker_clear_filter,           PICKER_CLEAR_FILTER,              0,                                        "vis-picker-clear-filter",              "Picker clear filter") \
 	X(ka_picker_files,                   PICKER_FILES,                     0,                                        "vis-picker-files",                     "Open file picker") \
+	X(ka_picker_files_current,           PICKER_FILES_CURRENT,             0,                                        "vis-picker-files-current",             "Open current-directory file picker") \
 	X(ka_picker_buffers,                 PICKER_BUFFERS,                   0,                                        "vis-picker-buffers",                   "Open buffer picker") \
 	X(ka_normalmode_escape,               MODE_NORMAL_ESCAPE,               0,                                        "vis-mode-normal-escape",              "Reset count or remove all non-primary selections") \
 	X(ka_openline,                        OPEN_LINE_ABOVE,                  .i = -1,                                  "vis-open-line-above",                 "Begin a new line above the cursor") \

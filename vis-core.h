@@ -50,6 +50,23 @@ enum HelixPrompt {
 	HELIX_PROMPT_REMOVE_REGEX,
 };
 
+typedef enum {
+	PICKER_ITEM_TEXT,
+	PICKER_ITEM_FILE,
+	PICKER_ITEM_BUFFER,
+	PICKER_ITEM_LOCATION,
+} PickerItemKind;
+
+typedef struct PickerItem {
+	char *label;
+	char *path;
+	char *detail;
+	char *preview_path;
+	int line;
+	int column;
+	PickerItemKind kind;
+} PickerItem;
+
 typedef struct {
 	Buffer     *data;
 	VisDACount  count;
@@ -234,12 +251,12 @@ struct Vis {
 		size_t filter_len;
 		int selected;
 		int scroll_offset;
-		char **items;
+		bool preview_visible;
+		PickerItem *items;
 		int item_count;
-		char **filtered;
-		int *filtered_indices; /* maps filtered index to items index */
+		PickerItem **filtered;
 		int filtered_count;
-		void (*on_select)(Vis*, const char*);
+		void (*on_select)(Vis*, const PickerItem*);
 		Win *saved_win;
 		Mode *saved_mode;
 	} picker;
@@ -379,10 +396,11 @@ VIS_INTERNAL bool register_resize(Register*, size_t count);
 
 /* Picker */
 void vis_picker_input(Vis *vis, const char *data, size_t len);
-void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, const char*));
+void picker_open(Vis *vis, PickerItem *items, int count, void (*on_select)(Vis*, const PickerItem*));
 void picker_refilter(Vis *vis);
 void picker_draw(Vis *vis);
 void vis_picker_leave(Vis *vis, Mode *old_mode);
 void picker_open_files(Vis *vis);
+void picker_open_files_current(Vis *vis);
 
 #endif

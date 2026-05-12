@@ -53,12 +53,38 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 
 ## In Progress
 
-### `.` repeat Phase 2 — selection + operator
+### Picker parity branch
+- Goal: bring the picker closer to pragmatic Helix parity and prepare it for first-party C LSP integration.
+- Primary constraint: keep the picker usable and stable; if a task gets deep, record status here and move on.
+- Out of scope for this branch: C LSP client, repeat Phase 2/3, tree-sitter, and large UI rewrites.
+
+#### Target scope
+- [x] Refactor picker from string-only entries to structured items (`label`, `path`, `line`, `column`, `kind`, `detail`, future payload).
+- [x] Preserve current file and buffer picker behavior during the refactor.
+- [ ] Add generic picker action handling so future diagnostics/symbol/reference pickers can open locations without changing picker core.
+- [x] Add Helix-like navigation polish: Tab/Shift-Tab, PageUp/PageDown, Home/End, Ctrl-u/Ctrl-d.
+- [x] Add preview toggle (`Ctrl-t`).
+- [x] Split file pickers into workspace-root picker and current-directory picker.
+- [x] Add workspace root detection (`.git`, `.jj`, `.helix`, fallback cwd).
+- [x] Add basic ignore rules for large/noisy directories (`.git`, `node_modules`, `target`, `build`, `dist`, `.cache`, `dependency`).
+- [ ] Improve preview: binary/large-file fallback done; selected line centering and syntax highlighting deferred.
+- [ ] Add jumplist picker if current state is accessible cleanly.
+- [ ] Add changed-file picker if dirty file state is accessible cleanly.
+- [ ] Add tests for lifecycle, filtering, navigation bindings, preview toggle, and preserved file/buffer behavior.
+
+#### LSP preparation
+- Picker item model should be able to represent future LSP diagnostics, document symbols, workspace symbols, references, and global search matches.
+- LSP branch should be able to feed structured items into picker without another picker refactor.
+- Formatter/LSP implementation remains a follow-up branch; current Lua plugin setup stays as bridge only.
+- Status 2026-05-12: structured item model, workspace/current-directory file picker split, preview toggle, binary preview fallback, and Helix-like navigation keys are implemented. Syntax-highlighted preview is not done yet.
+
+## Backlog
+
+### `.` repeat Phase 2 — selection + operator follow-up
 - Word-selection + operator repeat is implemented for `d/c/y/>/<`.
 - `wd.` replays "select next word, delete" at the current position.
 - Remaining Phase 2 scope: non-word selection transforms (`x`, find/search, line selections) if needed.
-
-## Backlog
+- Deferred for now; not a high-use feature.
 
 ### `.` repeat Phase 2 — selection + operator
 - `wd.` should replay "select next word, delete"

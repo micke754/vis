@@ -25,6 +25,65 @@ void vis_picker_input(Vis *vis, const char *data, size_t len) {
 
 static void picker_preview_load(Vis *vis, const char *path);
 
+static void picker_item_free(PickerItem *item) {
+	if (!item)
+		return;
+	free(item->label);
+	free(item->path);
+	free(item->detail);
+	free(item->preview_path);
+	memset(item, 0, sizeof(*item));
+}
+
+static void picker_items_free(PickerItem *items, int count) {
+	for (int i = 0; i < count; i++)
+		picker_item_free(&items[i]);
+	free(items);
+}
+
+static bool picker_item_set(PickerItem *item, PickerItemKind kind, const char *label, const char *path) {
+	memset(item, 0, sizeof(*item));
+	item->kind = kind;
+	item->label = strdup(label ? label : "");
+	item->path = path ? strdup(path) : NULL;
+	item->line = 0;
+	item->column = 0;
+	if (!item->label || (path && !item->path)) {
+		picker_item_free(item);
+		return false;
+	}
+	return true;
+}
+
+static bool picker_item_copy(PickerItem *dst, const PickerItem *src) {
+	memset(dst, 0, sizeof(*dst));
+	if (!src)
+		return false;
+	dst->kind = src->kind;
+	dst->line = src->line;
+	dst->column = src->column;
+	dst->label = src->label ? strdup(src->label) : NULL;
+	dst->path = src->path ? strdup(src->path) : NULL;
+	dst->detail = src->detail ? strdup(src->detail) : NULL;
+	dst->preview_path = src->preview_path ? strdup(src->preview_path) : NULL;
+	if ((src->label && !dst->label) || (src->path && !dst->path) ||
+	    (src->detail && !dst->detail) || (src->preview_path && !dst->preview_path)) {
+		picker_item_free(dst);
+		return false;
+	}
+	return true;
+}
+
+static const char *picker_item_preview_path(const PickerItem *item) {
+	if (!item)
+		return NULL;
+	if (item->preview_path)
+		return item->preview_path;
+	if (item->path)
+		return item->path;
+	return item->label;
+}
+
 /* Set up key bindings for the picker mode (called once) */
 static bool picker_bindings_init(Vis *vis) {
 	Mode *picker_mode = &vis_modes[VIS_MODE_PICKER];
@@ -37,9 +96,18 @@ static bool picker_bindings_init(Vis *vis) {
 
 	static const struct { const char *key; const char *action; } bindings[] = {
 		{ "<Down>",          "vis-picker-down" },
+		{ "<Tab>",           "vis-picker-down" },
 		{ "<C-n>",           "vis-picker-down" },
 		{ "<Up>",            "vis-picker-up" },
+		{ "<S-Tab>",         "vis-picker-up" },
 		{ "<C-p>",           "vis-picker-up" },
+		{ "<PageDown>",      "vis-picker-page-down" },
+		{ "<C-d>",           "vis-picker-page-down" },
+		{ "<PageUp>",        "vis-picker-page-up" },
+		{ "<C-u>",           "vis-picker-page-up" },
+		{ "<Home>",          "vis-picker-first" },
+		{ "<End>",           "vis-picker-last" },
+		{ "<C-t>",           "vis-picker-toggle-preview" },
 		{ "<Enter>",         "vis-picker-accept" },
 		{ "<C-j>",           "vis-picker-accept" },
 		{ "<Escape>",        "vis-picker-cancel" },
@@ -48,7 +116,7 @@ static bool picker_bindings_init(Vis *vis) {
 		{ "<Backspace>",     "vis-picker-backspace" },
 		{ "<C-h>",           "vis-picker-backspace" },
 		{ "<C-w>",           "vis-picker-delete-word" },
-		{ "<C-u>",           "vis-picker-clear-filter" },
+		{ "<C-x>",           "vis-picker-clear-filter" },
 	};
 
 	for (size_t i = 0; i < LENGTH(bindings); i++) {
@@ -63,7 +131,7 @@ static bool picker_bindings_init(Vis *vis) {
 }
 
 /* Open the picker with a list of items */
-void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, const char*)) {
+void picker_open(Vis *vis, PickerItem *items, int count, void (*on_select)(Vis*, const PickerItem*)) {
 	if (!picker_bindings_init(vis))
 		goto err;
 
@@ -72,21 +140,20 @@ void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, cons
 	vis->picker.filter_len = 0;
 	vis->picker.selected = 0;
 	vis->picker.scroll_offset = 0;
+	vis->picker.preview_visible = true;
 	vis->picker.items = items;
 	vis->picker.item_count = count;
 	vis->picker.on_select = on_select;
 	vis->picker.saved_win = vis->win;
 	vis->picker.saved_mode = vis->mode;
 
-	vis->picker.filtered = count > 0 ? calloc(count, sizeof(char*)) : NULL;
-	vis->picker.filtered_indices = count > 0 ? calloc(count, sizeof(int)) : NULL;
-	if (count > 0 && (!vis->picker.filtered || !vis->picker.filtered_indices))
+	vis->picker.filtered = count > 0 ? calloc(count, sizeof(PickerItem*)) : NULL;
+	if (count > 0 && !vis->picker.filtered)
 		goto err;
 	vis->picker.filtered_count = count;
 
 	for (int i = 0; i < count; i++) {
-		vis->picker.filtered[i] = items[i];
-		vis->picker.filtered_indices[i] = i;
+		vis->picker.filtered[i] = &items[i];
 	}
 
 	/* Don't call vis_mode_switch — it invokes enter/leave callbacks.
@@ -96,11 +163,8 @@ void picker_open(Vis *vis, char **items, int count, void (*on_select)(Vis*, cons
 	return;
 
 err:
-	for (int i = 0; i < count; i++)
-		free(items[i]);
-	free(items);
+	picker_items_free(items, count);
 	free(vis->picker.filtered);
-	free(vis->picker.filtered_indices);
 	memset(&vis->picker, 0, sizeof(vis->picker));
 }
 
@@ -109,19 +173,16 @@ static void picker_close(Vis *vis, bool accept) {
 	if (!vis->picker.active)
 		return;
 
-	char *selection = NULL;
+	PickerItem selection = {0};
+	bool has_selection = false;
 	if (accept && vis->picker.filtered_count > 0) {
-		int idx = vis->picker.filtered_indices[vis->picker.selected];
-		selection = strdup(vis->picker.items[idx]);
+		has_selection = picker_item_copy(&selection, vis->picker.filtered[vis->picker.selected]);
 	}
 
-	void (*on_select)(Vis*, const char*) = vis->picker.on_select;
+	void (*on_select)(Vis*, const PickerItem*) = vis->picker.on_select;
 
-	for (int i = 0; i < vis->picker.item_count; i++)
-		free(vis->picker.items[i]);
-	free(vis->picker.items);
+	picker_items_free(vis->picker.items, vis->picker.item_count);
 	free(vis->picker.filtered);
-	free(vis->picker.filtered_indices);
 
 	/* Clean up preview */
 	picker_preview_load(vis, NULL);
@@ -129,7 +190,6 @@ static void picker_close(Vis *vis, bool accept) {
 	vis->picker.active = false;
 	vis->picker.items = NULL;
 	vis->picker.filtered = NULL;
-	vis->picker.filtered_indices = NULL;
 
 	if (vis->picker.saved_win)
 		vis->win = vis->picker.saved_win;
@@ -138,10 +198,10 @@ static void picker_close(Vis *vis, bool accept) {
 	else
 		vis->mode = &vis_modes[VIS_MODE_NORMAL];
 
-	if (on_select && selection)
-		on_select(vis, selection);
+	if (on_select && has_selection)
+		on_select(vis, &selection);
 
-	free(selection);
+	picker_item_free(&selection);
 
 	vis_draw(vis);
 }
@@ -239,8 +299,7 @@ void picker_refilter(Vis *vis) {
 		/* No filter: show all items in original order */
 		vis->picker.filtered_count = vis->picker.item_count;
 		for (int i = 0; i < vis->picker.item_count; i++) {
-			vis->picker.filtered[i] = vis->picker.items[i];
-			vis->picker.filtered_indices[i] = i;
+			vis->picker.filtered[i] = &vis->picker.items[i];
 		}
 		return;
 	}
@@ -254,7 +313,7 @@ void picker_refilter(Vis *vis) {
 	}
 	int scored_count = 0;
 	for (int i = 0; i < max_items; i++) {
-		double s = picker_fuzzy_score(vis->picker.items[i], vis->picker.filter);
+		double s = picker_fuzzy_score(vis->picker.items[i].label, vis->picker.filter);
 		if (s > 0.0) {
 			scored[scored_count].original_index = i;
 			scored[scored_count].score = s;
@@ -269,8 +328,7 @@ void picker_refilter(Vis *vis) {
 	vis->picker.filtered_count = 0;
 	for (int i = 0; i < scored_count; i++) {
 		int idx = scored[i].original_index;
-		vis->picker.filtered[i] = vis->picker.items[idx];
-		vis->picker.filtered_indices[i] = idx;
+		vis->picker.filtered[i] = &vis->picker.items[idx];
 		vis->picker.filtered_count++;
 	}
 	free(scored);
@@ -295,6 +353,38 @@ static KEY_ACTION_FN(ka_picker_up) {
 		if (vis->picker.selected < 0)
 			vis->picker.selected = 0;
 	}
+	vis_draw(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_page) {
+	if (!vis->picker.active) return keys;
+	if (vis->picker.filtered_count > 0) {
+		int page = vis->ui.height - 4;
+		if (page < 1) page = 1;
+		vis->picker.selected += arg->i * page;
+		if (vis->picker.selected < 0)
+			vis->picker.selected = 0;
+		if (vis->picker.selected >= vis->picker.filtered_count)
+			vis->picker.selected = vis->picker.filtered_count - 1;
+	}
+	vis_draw(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_edge) {
+	if (!vis->picker.active) return keys;
+	if (vis->picker.filtered_count > 0)
+		vis->picker.selected = arg->i < 0 ? 0 : vis->picker.filtered_count - 1;
+	vis_draw(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_toggle_preview) {
+	if (!vis->picker.active) return keys;
+	vis->picker.preview_visible = !vis->picker.preview_visible;
+	if (!vis->picker.preview_visible)
+		picker_preview_load(vis, NULL);
 	vis_draw(vis);
 	return keys;
 }
@@ -352,7 +442,8 @@ static KEY_ACTION_FN(ka_picker_clear_filter) {
 /* File picker callback: open selected file.
  * Increments old file refcount before replacement so it stays
  * in vis->files for the buffer picker (<Space>b) to find. */
-static void picker_on_file_select(Vis *vis, const char *path) {
+static void picker_on_file_select(Vis *vis, const PickerItem *item) {
+	const char *path = item ? item->path : NULL;
 	if (!path || !vis->win) return;
 	/* Keep old file alive (hidden buffer) so buffer picker can find it */
 	if (vis->win->file)
@@ -379,18 +470,55 @@ static bool is_binary_file(const char *path) {
 	return (non_printable * 100 / n) > 30;
 }
 
+static bool picker_ignore_entry(const char *name) {
+	static const char *ignored[] = {
+		".git", "node_modules", "target", "build", "dist", ".cache", "dependency",
+	};
+	for (size_t i = 0; i < LENGTH(ignored); i++) {
+		if (strcmp(name, ignored[i]) == 0)
+			return true;
+	}
+	return false;
+}
+
+static bool path_has_child(const char *dir, const char *name) {
+	char path[4096];
+	struct stat st;
+	if (snprintf(path, sizeof(path), "%s/%s", dir, name) >= (int)sizeof(path))
+		return false;
+	return stat(path, &st) == 0;
+}
+
+static bool picker_workspace_root(char *root, size_t len) {
+	if (!getcwd(root, len))
+		return false;
+
+	for (;;) {
+		if (path_has_child(root, ".git") || path_has_child(root, ".jj") || path_has_child(root, ".helix"))
+			return true;
+
+		char *slash = strrchr(root, '/');
+		if (!slash || slash == root) {
+			if (slash == root)
+				root[1] = '\0';
+			return true;
+		}
+		*slash = '\0';
+	}
+}
+
 /* Recursive helper: collect files from directory tree.
  * depth=0 means list files/dirs in given dir. depth>0 recurses into subdirs.
  * prefix is the relative path to prepend (used for recursion). */
 static void picker_collect_files(const char *dirpath, const char *prefix,
-                                  char ***items, int *count, int *capacity,
+                                  PickerItem **items, int *count, int *capacity,
                                   int depth) {
 	DIR *d = opendir(dirpath);
 	if (!d) return;
 
 	struct dirent *entry;
 	while ((entry = readdir(d))) {
-		if (entry->d_name[0] == '.') continue;
+		if (entry->d_name[0] == '.' || picker_ignore_entry(entry->d_name)) continue;
 		/* Build full relative path */
 		char relpath[4096];
 		if (prefix[0])
@@ -413,28 +541,21 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
 				continue;
 		}
 
-		/* Skip binary files (executables, object files, etc.) */
-		{
-			char fullpath[4096];
-			snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
-			if (is_binary_file(fullpath))
-				continue;
-		}
-
 		/* Add file to list */
 		if (*count >= *capacity) {
 			*capacity *= 2;
-			char **new_items = realloc(*items, *capacity * sizeof(char*));
+			PickerItem *new_items = realloc(*items, *capacity * sizeof(PickerItem));
 			if (!new_items) {
 				closedir(d);
 				return;
 			}
 			*items = new_items;
 		}
-		char *item = strdup(relpath);
-		if (!item)
+		char item_path[4096];
+		snprintf(item_path, sizeof(item_path), "%s/%s", dirpath, entry->d_name);
+		if (!picker_item_set(&(*items)[*count], PICKER_ITEM_FILE, relpath, item_path))
 			continue;
-		(*items)[(*count)++] = item;
+		(*count)++;
 	}
 	closedir(d);
 }
@@ -443,8 +564,10 @@ static void picker_collect_files(const char *dirpath, const char *prefix,
  * 1. Files in root directory (no '/') come first
  * 2. Within same depth, sort case-insensitively alphabetically */
 static int picker_cmp_file(const void *a, const void *b) {
-	const char *pa = *(const char **)a;
-	const char *pb = *(const char **)b;
+	const PickerItem *ia = a;
+	const PickerItem *ib = b;
+	const char *pa = ia->label;
+	const char *pb = ib->label;
 
 	/* Count path separators (directory depth) */
 	int da = 0, db = 0;
@@ -460,35 +583,49 @@ static int picker_cmp_file(const void *a, const void *b) {
 
 /* qsort comparison for buffer listing: sort alphabetically by basename */
 static int picker_cmp_buffer(const void *a, const void *b) {
-	const char *pa = *(const char **)a;
-	const char *pb = *(const char **)b;
+	const PickerItem *ia = a;
+	const PickerItem *ib = b;
+	const char *pa = ia->label;
+	const char *pb = ib->label;
 	const char *ba = strrchr(pa, '/'); ba = ba ? ba + 1 : pa;
 	const char *bb = strrchr(pb, '/'); bb = bb ? bb + 1 : pb;
 	return strcasecmp(ba, bb);
 }
 
-/* Open file picker: recursively list files from current directory.
- * Shows both files and directories. Directories are expanded inline
- * (no separate directory entries). Set depth=2 for 2 levels of recursion. */
-void picker_open_files(Vis *vis) {
-	char **items = NULL;
+static void picker_open_files_at(Vis *vis, const char *root) {
+	PickerItem *items = NULL;
 	int count = 0;
 	int capacity = 128;
-	items = calloc(capacity, sizeof(char*));
+	items = calloc(capacity, sizeof(PickerItem));
 	if (!items)
 		return;
 
 	/* Collect files recursively (depth=2: current dir + 1 level of subdirs) */
-	picker_collect_files(".", "", &items, &count, &capacity, 2);
+	picker_collect_files(root, "", &items, &count, &capacity, 2);
 
 	/* Sort: current-dir files first, then subdir files, all alphabetical */
-	qsort(items, count, sizeof(char*), picker_cmp_file);
+	qsort(items, count, sizeof(PickerItem), picker_cmp_file);
 
 	picker_open(vis, items, count, picker_on_file_select);
 }
 
+/* Open file picker at workspace root, falling back to the current directory. */
+void picker_open_files(Vis *vis) {
+	char root[4096];
+	if (!picker_workspace_root(root, sizeof(root)))
+		strncpy(root, ".", sizeof(root) - 1);
+	root[sizeof(root) - 1] = '\0';
+	picker_open_files_at(vis, root);
+}
+
+/* Open file picker rooted at the current working directory. */
+void picker_open_files_current(Vis *vis) {
+	picker_open_files_at(vis, ".");
+}
+
 /* Buffer picker callback: switch to selected buffer */
-static void picker_on_buffer_select(Vis *vis, const char *path) {
+static void picker_on_buffer_select(Vis *vis, const PickerItem *item) {
+	const char *path = item ? item->path : NULL;
 	if (!path || !vis->win) return;
 	/* Find existing window for this file */
 	for (Win *win = vis->windows; win; win = win->next) {
@@ -513,29 +650,34 @@ void picker_open_buffers(Vis *vis) {
 	}
 	if (count == 0) return;
 
-	char **items = calloc(count, sizeof(char*));
+	PickerItem *items = calloc(count, sizeof(PickerItem));
 	if (!items)
 		return;
 	int i = 0;
 	for (File *f = vis->files; f; f = f->next) {
 		if (f->internal || !f->name) continue;
-		items[i] = strdup(f->name);
-		if (items[i])
+		if (picker_item_set(&items[i], PICKER_ITEM_BUFFER, f->name, f->name))
 			i++;
 	}
 	count = i;
 	if (count == 0) {
-		free(items);
+		picker_items_free(items, count);
 		return;
 	}
 	/* Sort alphabetically by filename */
-	qsort(items, count, sizeof(char*), picker_cmp_buffer);
+	qsort(items, count, sizeof(PickerItem), picker_cmp_buffer);
 	picker_open(vis, items, count, picker_on_buffer_select);
 }
 
 static KEY_ACTION_FN(ka_picker_files) {
 	if (vis->picker.active) return keys;
 	picker_open_files(vis);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_picker_files_current) {
+	if (vis->picker.active) return keys;
+	picker_open_files_current(vis);
 	return keys;
 }
 
@@ -557,6 +699,16 @@ static void picker_preview_load(Vis *vis, const char *path) {
 	vis->picker_preview.path = NULL;
 
 	if (!path) return;
+	if (is_binary_file(path)) {
+		vis->picker_preview.lines = calloc(1, sizeof(char*));
+		if (vis->picker_preview.lines) {
+			vis->picker_preview.lines[0] = strdup("[binary or unreadable file]");
+			if (vis->picker_preview.lines[0])
+				vis->picker_preview.line_count = 1;
+		}
+		vis->picker_preview.path = strdup(path);
+		return;
+	}
 
 	FILE *f = fopen(path, "r");
 	if (!f) return;
@@ -579,8 +731,11 @@ static void picker_preview_update(Vis *vis) {
 		picker_preview_load(vis, NULL);
 		return;
 	}
-	int idx = vis->picker.filtered_indices[vis->picker.selected];
-	const char *path = vis->picker.items[idx];
+	const char *path = picker_item_preview_path(vis->picker.filtered[vis->picker.selected]);
+	if (!path) {
+		picker_preview_load(vis, NULL);
+		return;
+	}
 
 	/* Only reload if path changed */
 	if (vis->picker_preview.path && strcmp(vis->picker_preview.path, path) == 0)
@@ -592,7 +747,8 @@ static void picker_preview_update(Vis *vis) {
 /* Draw the picker overlay into the UI cells buffer */
 void picker_draw(Vis *vis) {
 	if (!vis->picker.active) return;
-	picker_preview_update(vis);
+	if (vis->picker.preview_visible)
+		picker_preview_update(vis);
 
 	Ui *ui = &vis->ui;
 	int width = ui->width;
@@ -606,6 +762,8 @@ void picker_draw(Vis *vis) {
 	int list_width = width * 32 / 100;
 	if (list_width < 24) list_width = 24;
 	if (list_width > width - 25) list_width = width - 25;
+	if (!vis->picker.preview_visible)
+		list_width = width;
 	int divider_x = list_width;
 
 	/* Styles */
@@ -649,7 +807,8 @@ void picker_draw(Vis *vis) {
 	for (int x = 0; x < width; x++)
 		ui->cells[row * width + x] = (Cell){ .data = "─", .len = 3, .width = 1, .style = line_style };
 	/* Divider notch in separator */
-	ui->cells[row * width + divider_x] = (Cell){ .data = "┬", .len = 3, .width = 1, .style = line_style };
+	if (vis->picker.preview_visible)
+		ui->cells[row * width + divider_x] = (Cell){ .data = "┬", .len = 3, .width = 1, .style = line_style };
 
 	/* Content area: file list (left) + preview (right) */
 	int content_start = 2;
@@ -673,7 +832,7 @@ void picker_draw(Vis *vis) {
 
 		/* Left panel: file entries */
 		if (sel_idx < vis->picker.filtered_count) {
-			const char *text = vis->picker.filtered[sel_idx];
+			const char *text = vis->picker.filtered[sel_idx]->label;
 			CellStyle s = is_sel ? sel : bg;
 			int col = 0;
 			for (; text[col] && col < divider_x; col++) {
@@ -699,24 +858,26 @@ void picker_draw(Vis *vis) {
 				ui->cells[r * width + col] = sp;
 		}
 
-		/* Vertical divider */
-		ui->cells[r * width + divider_x] = (Cell){ .data = "│", .len = 3, .width = 1, .style = line_style };
+		if (vis->picker.preview_visible) {
+			/* Vertical divider */
+			ui->cells[r * width + divider_x] = (Cell){ .data = "│", .len = 3, .width = 1, .style = line_style };
 
-		/* Right panel: preview */
-		int px = divider_x + 1;
-		if (vis->picker_preview.line_count > 0 && i < vis->picker_preview.line_count) {
-			const char *line = vis->picker_preview.lines[i];
-			size_t linelen = strlen(line);
-			if (linelen > 0 && line[linelen-1] == '\n') linelen--;
-			for (size_t c = 0; c < linelen && px < width; c++, px++) {
-				Cell ch = { .data = " ", .len = 1, .width = 1, .style = preview_bg };
-				ch.data[0] = line[c];
-				ui->cells[r * width + px] = ch;
+			/* Right panel: preview */
+			int px = divider_x + 1;
+			if (vis->picker_preview.line_count > 0 && i < vis->picker_preview.line_count) {
+				const char *line = vis->picker_preview.lines[i];
+				size_t linelen = strlen(line);
+				if (linelen > 0 && line[linelen-1] == '\n') linelen--;
+				for (size_t c = 0; c < linelen && px < width; c++, px++) {
+					Cell ch = { .data = " ", .len = 1, .width = 1, .style = preview_bg };
+					ch.data[0] = line[c];
+					ui->cells[r * width + px] = ch;
+				}
 			}
+			/* Fill rest of row */
+			for (; px < width; px++)
+				ui->cells[r * width + px] = sp;
 		}
-		/* Fill rest of row */
-		for (; px < width; px++)
-			ui->cells[r * width + px] = sp;
 	}
 
 	/* Position cursor in filter line */
