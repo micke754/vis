@@ -49,4 +49,10 @@ describe("helix dot repeat", function()
 		-- Just verify R works and doesn't crash
 		assert.are.equal(true, content():len() > 0)
 	end)
+
+	it("wd then . repeats word delete at current position", function()
+		reset("one two three\n", 0)
+		vis:feedkeys("wd.")
+		assert.are.equal("three\n", content())
+	end)
 end)

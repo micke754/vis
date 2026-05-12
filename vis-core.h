@@ -218,9 +218,14 @@ struct Vis {
 	enum VisSelectionSemantics selection_semantics; /* vim or helix selection behavior */
 	bool helix_select;                   /* whether Helix select/extend mode is active */
 	struct {
-		enum { HELIX_REPEAT_NONE, HELIX_REPEAT_REPLACE_CHAR, HELIX_REPEAT_REPLACE_WITH_YANKED } kind;
+		enum { HELIX_REPEAT_NONE, HELIX_REPEAT_REPLACE_CHAR, HELIX_REPEAT_REPLACE_WITH_YANKED, HELIX_REPEAT_SELECTION_OPERATOR } kind;
 		char data[8]; /* replacement char (utf-8) or other small payload */
 		size_t len;   /* length of data */
+		enum VisMotion selection;
+		enum VisOperator op;
+		int count;
+		enum VisMotion pending_selection;
+		int pending_count;
 	} helix_repeat;
 	bool picker_open_at_start;
 	struct {

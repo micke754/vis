@@ -1502,6 +1502,16 @@ static KEY_ACTION_FN(ka_helix_repeat)
 	case HELIX_REPEAT_REPLACE_WITH_YANKED:
 		helix_replace_with_yanked_apply(vis);
 		break;
+	case HELIX_REPEAT_SELECTION_OPERATOR:
+	{
+		enum VisMotion selection = vis->helix_repeat.selection;
+		enum VisOperator op = vis->helix_repeat.op;
+		int count = vis->helix_repeat.count;
+		vis->action.count = count > 0 ? count : VIS_COUNT_UNKNOWN;
+		vis_motion(vis, selection);
+		vis_operator(vis, op);
+		break;
+	}
 	case HELIX_REPEAT_NONE:
 	default:
 		/* Fall back to standard vis repeat for d/c/y/>/<  */

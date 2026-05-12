@@ -740,6 +740,47 @@ static size_t movement_apply(Vis *vis, Win *win, File *file, Text *txt, View *vi
 	return pos;
 }
 
+static enum VisMotion helix_repeat_motion_id(const Movement *movement) {
+	if (!movement)
+		return VIS_MOVE_INVALID;
+	for (enum VisMotion id = 0; id < VIS_MOVE_INVALID; id++) {
+		if (movement == &vis_motions[id])
+			return id;
+	}
+	return VIS_MOVE_INVALID;
+}
+
+static enum VisOperator helix_repeat_operator_id(const Operator *op) {
+	if (!op)
+		return VIS_OP_INVALID;
+	for (enum VisOperator id = 0; id < VIS_OP_INVALID; id++) {
+		if (op == &vis_operators[id])
+			return id;
+	}
+	return VIS_OP_INVALID;
+}
+
+static bool helix_repeat_operator_supported(enum VisOperator op) {
+	return op == VIS_OP_DELETE || op == VIS_OP_CHANGE || op == VIS_OP_YANK ||
+	       op == VIS_OP_SHIFT_LEFT || op == VIS_OP_SHIFT_RIGHT;
+}
+
+static bool helix_repeat_selection_supported(enum VisMotion motion) {
+	switch (motion) {
+	case VIS_MOVE_WORD_START_NEXT:
+	case VIS_MOVE_WORD_START_PREV:
+	case VIS_MOVE_WORD_END_NEXT:
+	case VIS_MOVE_WORD_END_PREV:
+	case VIS_MOVE_LONGWORD_START_NEXT:
+	case VIS_MOVE_LONGWORD_START_PREV:
+	case VIS_MOVE_LONGWORD_END_NEXT:
+	case VIS_MOVE_LONGWORD_END_PREV:
+		return true;
+	default:
+		return false;
+	}
+}
+
 
 void vis_do(Vis *vis) {
 	Win *win = vis->win;
@@ -916,6 +957,15 @@ void vis_do(Vis *vis) {
 
 		if (a->op) {
 			if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX) {
+				enum VisOperator op = helix_repeat_operator_id(a->op);
+				if (!vis->mode->visual && !a->movement && !a->textobj &&
+				    helix_repeat_operator_supported(op) &&
+				    helix_repeat_selection_supported(vis->helix_repeat.pending_selection)) {
+					vis->helix_repeat.kind = HELIX_REPEAT_SELECTION_OPERATOR;
+					vis->helix_repeat.selection = vis->helix_repeat.pending_selection;
+					vis->helix_repeat.op = op;
+					vis->helix_repeat.count = vis->helix_repeat.pending_count;
+				}
 				vis->helix_select = false;
 				helix_put_context(vis, txt, sel, a, &c);
 			}
@@ -968,11 +1018,22 @@ void vis_do(Vis *vis) {
 	}
 
 	if (a != &vis->action_prev) {
+		if (vis->selection_semantics == VIS_SELECTION_SEMANTICS_HELIX && !a->op && a->movement) {
+			enum VisMotion motion = helix_repeat_motion_id(a->movement);
+			if (helix_repeat_selection_supported(motion)) {
+				vis->helix_repeat.pending_selection = motion;
+				vis->helix_repeat.pending_count = count;
+			} else {
+				vis->helix_repeat.pending_selection = VIS_MOVE_INVALID;
+				vis->helix_repeat.pending_count = 0;
+			}
+		}
 		if (repeatable) {
 			if (!a->macro)
 				a->macro = vis->macro_operator;
 			vis->action_prev = *a;
-			vis->helix_repeat.kind = HELIX_REPEAT_NONE;
+			if (vis->helix_repeat.kind != HELIX_REPEAT_SELECTION_OPERATOR)
+				vis->helix_repeat.kind = HELIX_REPEAT_NONE;
 		}
 		action_reset(a);
 	}

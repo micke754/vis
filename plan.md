@@ -54,7 +54,9 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 ## In Progress
 
 ### `.` repeat Phase 2 — selection + operator
-- Next target: `wd.` should replay "select next word, delete".
+- Word-selection + operator repeat is implemented for `d/c/y/>/<`.
+- `wd.` replays "select next word, delete" at the current position.
+- Remaining Phase 2 scope: non-word selection transforms (`x`, find/search, line selections) if needed.
 
 ## Backlog
 
@@ -114,7 +116,7 @@ Native-feeling Helix editing mode in vis, toggled via `:set keymap helix` / `vim
 - [x] Refresh stale `keymap-profile.lua` assertions for current profile semantics
 
 ### 3. Backlog
-- `. ` repeat Phase 2: selection+operator (`wd.`)
+- `. ` repeat Phase 2 follow-up: non-word selection transforms (`x`, find/search, line selections)
 - `. ` repeat Phase 3: surround/textobjects
 - View mode: `V` line-select, `Ctrl-v` block-select
 - Selection-content rotation (`Alt-(`/`Alt-)`)
