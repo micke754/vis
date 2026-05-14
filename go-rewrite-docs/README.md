@@ -57,6 +57,8 @@ The canonical binary is `wisp`. The intended short executable alias is `ws`, sim
 - `11-mvp-spec.md`: exact prototype behavior, commands, keybindings, and non-goals.
 - `12-api-contracts.md`: initial Go interfaces and domain types the prototype should start from.
 - `13-acceptance-tests.md`: required tests and verification commands per milestone.
+- `14-keybinding-rollout.md`: staged order for exposing editor, picker, LSP, AI, and Helix-like functionality through keybindings.
+- `15-vis-helix-reference.md`: behavior reference for the existing vis Helix implementation, mapped to Go commands.
 - `AGENT.md`: root-agent template for the future `wisp` repository.
 
 ## Core Thesis

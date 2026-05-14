@@ -40,6 +40,13 @@ If implementing buffers, selections, undo, repeat, or commands, read:
 
 - `go-rewrite-docs/04-editor-core.md`
 - `go-rewrite-docs/12-api-contracts.md`
+- `go-rewrite-docs/15-vis-helix-reference.md`
+
+If adding or changing keybindings, read:
+
+- `go-rewrite-docs/14-keybinding-rollout.md`
+- `go-rewrite-docs/15-vis-helix-reference.md`
+- `go-rewrite-docs/13-acceptance-tests.md`
 
 If implementing terminal UI, overlays, picker, previews, or changed files, read:
 
@@ -59,6 +66,7 @@ If writing or fixing tests, read:
 If unsure what to build next, read:
 
 - `go-rewrite-docs/10-agent-build-plan.md`
+- `go-rewrite-docs/14-keybinding-rollout.md`
 
 If scope feels too large, read:
 
